@@ -20,13 +20,17 @@ controller_workflows:
       - "{{ demo_label_name }}"
     state: present
     simplified_workflow_nodes:
+      # Scoping by organization prevents lookup failures when a same-named template
+      # exists outside this org (e.g. an orphan from a prior incomplete run).
       - identifier: provision_azure
         unified_job_template: Provision - Azure VM
+        organization: "{{ demo_organization_name }}"
         success_nodes: []
         failure_nodes: []
         always_nodes: []
       - identifier: provision_aws
         unified_job_template: Provision - AWS EC2
+        organization: "{{ demo_organization_name }}"
         success_nodes: []
         failure_nodes: []
         always_nodes: []
@@ -41,24 +45,28 @@ controller_workflows:
     simplified_workflow_nodes:
       - identifier: snapshot_azure
         unified_job_template: Snapshot - Azure by hostname
+        organization: "{{ demo_organization_name }}"
         success_nodes:
           - snapshot_aws
         failure_nodes: []
         always_nodes: []
       - identifier: snapshot_aws
         unified_job_template: Snapshot - AWS by hostname
+        organization: "{{ demo_organization_name }}"
         success_nodes:
           - verify_snapshots
         failure_nodes: []
         always_nodes: []
       - identifier: verify_snapshots
         unified_job_template: Snapshot - Verify
+        organization: "{{ demo_organization_name }}"
         success_nodes:
           - cleanup_snapshots
         failure_nodes: []
         always_nodes: []
       - identifier: cleanup_snapshots
         unified_job_template: Snapshot - Cleanup (optional)
+        organization: "{{ demo_organization_name }}"
         success_nodes: []
         failure_nodes: []
         always_nodes: []
@@ -75,6 +83,7 @@ controller_workflows:
     simplified_workflow_nodes:
       - identifier: cleanup_snapshots
         unified_job_template: Snapshot - Cleanup (optional)
+        organization: "{{ demo_organization_name }}"
         success_nodes:
           - deprovision_azure
           - deprovision_aws
@@ -82,11 +91,13 @@ controller_workflows:
         always_nodes: []
       - identifier: deprovision_azure
         unified_job_template: Deprovision - Azure VM
+        organization: "{{ demo_organization_name }}"
         success_nodes: []
         failure_nodes: []
         always_nodes: []
       - identifier: deprovision_aws
         unified_job_template: Deprovision - AWS EC2
+        organization: "{{ demo_organization_name }}"
         success_nodes: []
         failure_nodes: []
         always_nodes: []
