@@ -222,10 +222,10 @@ This artifact provisions a parent inventory `Demo-Multicloud` with child invento
 
 **Constructed inventory:** `Demo-Multicloud` aggregates hosts from the two child inventories via `input_inventories`. The dispatch role does not always set `input_inventories` on first create; `aap_config.yml` reconciles this in a post-task. After CasC, you should see placeholder hosts in `Azure-Resources` and `AWS-Resources`; `Demo-Multicloud` lists the same hosts once wiring succeeds.
 
-**After cloud provisioning:** the setup workflow runs **Update - Multicloud inventory hosts**, which sets `ansible_host` to each VM public IP. Re-open `Demo-Multicloud` in the AAP UI if hosts do not refresh immediately.
+**After cloud provisioning:** the setup workflow runs **Update - Multicloud inventory hosts**, which sets `ansible_host` to each VM public IP and **syncs** the constructed inventory automatically (no manual **Sync** in the UI).
 
 If `Demo-Multicloud` is still empty:
 
 1. Confirm hosts exist under **Azure-Resources** and **AWS-Resources**.
-2. Re-run `ansible-playbook playbooks/aap_config.yml --vault-id @prompt` (post-task rewires `input_inventories`).
-3. Run **Update - Multicloud inventory hosts** after the setup workflow, or launch it manually from **Templates**.
+2. Re-run `ansible-playbook playbooks/aap_config.yml --vault-id @prompt` (post-tasks wire `input_inventories` and sync).
+3. Run **Update - Multicloud inventory hosts** from **Templates**, or re-launch **WF - Demo setup**.

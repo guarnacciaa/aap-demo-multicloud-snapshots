@@ -63,3 +63,9 @@
       tags:
         - always
         - inventories
+
+    - name: Sync constructed inventory after wiring input sources
+      ansible.builtin.include_tasks: tasks/sync_constructed_inventory.yml
+      tags:
+        - always
+        - inventories

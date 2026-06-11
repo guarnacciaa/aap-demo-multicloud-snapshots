@@ -88,6 +88,11 @@
         - aws
         - inventory
 
+    - name: Sync constructed inventory after child host updates
+      ansible.builtin.include_tasks: ../tasks/sync_constructed_inventory.yml
+      tags:
+        - inventory
+
     - name: Display inventory update summary
       ansible.builtin.debug:
         msg: >-
@@ -96,6 +101,6 @@
           AWS host {{ aws_ec2_hostname }}:
           {{ aws_ec2_info.instances[0].public_ip_address | default('not found')
              if (aws_ec2_info.instances | length > 0) else 'not found' }}.
-          Refresh Demo-Multicloud in the AAP UI to see aggregated hosts.
+          Demo-Multicloud constructed inventory sync completed.
       tags:
         - inventory

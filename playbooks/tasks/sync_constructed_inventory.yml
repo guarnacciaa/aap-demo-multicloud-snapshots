@@ -1,0 +1,38 @@
+# Sync Demo-Multicloud after child inventory hosts or input_inventories change.
+# Constructed inventories copy hosts from input inventories at sync time only.
+---
+- name: Look up constructed inventory ID
+  ansible.builtin.uri:
+    url: >-
+      https://{{ aap_hostname }}/api/v2/inventories/?name={{ demo_inventory_name | urlencode }}&organization__name={{ demo_organization_name | urlencode }}
+    user: "{{ aap_username }}"
+    password: "{{ aap_password }}"
+    validate_certs: "{{ aap_validate_certs }}"
+    force_basic_auth: true
+    return_content: true
+  register: _constructed_inventory_lookup
+  failed_when: _constructed_inventory_lookup.json.count | default(0) | int == 0
+
+- name: List inventory sources for constructed inventory
+  ansible.builtin.uri:
+    url: >-
+      https://{{ aap_hostname }}/api/v2/inventories/{{ _constructed_inventory_lookup.json.results[0].id }}/inventory_sources/
+    user: "{{ aap_username }}"
+    password: "{{ aap_password }}"
+    validate_certs: "{{ aap_validate_certs }}"
+    force_basic_auth: true
+    return_content: true
+  register: _constructed_inventory_sources
+  failed_when: _constructed_inventory_sources.json.count | default(0) | int == 0
+
+- name: Sync constructed inventory from input inventories
+  ansible.controller.inventory_source_update:
+    name: "{{ _constructed_inventory_sources.json.results[0].name }}"
+    inventory: "{{ demo_inventory_name }}"
+    organization: "{{ demo_organization_name }}"
+    wait: true
+    timeout: 300
+    controller_host: "https://{{ aap_hostname }}"
+    controller_username: "{{ aap_username }}"
+    controller_password: "{{ aap_password }}"
+    validate_certs: "{{ aap_validate_certs }}"
