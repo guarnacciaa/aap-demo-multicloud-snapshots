@@ -1,5 +1,18 @@
 # Description: Remove AAP objects created by this demo (destructive).
 # Requires explicit confirmation via demo_cleanup_confirm=true extra var.
+#
+# Cleanup runs in two phases because dispatch processes gateway objects
+# (organizations) BEFORE controller objects.  During creation that
+# dependency order is correct, but during deletion we must remove the
+# dependent objects first, then the organization.
+#
+#   Phase 1 — delete controller objects (credentials, inventories,
+#             projects, templates …) while the org still exists.
+#   Phase 2 — delete the now-empty organization.
+#
+# Labels are skipped entirely: the Controller API does not support
+# state: absent for labels.  Orphan labels are harmless and disappear
+# when the organization is removed in Phase 2.
 ---
 - name: Confirm multicloud snapshots demo cleanup
   hosts: localhost
@@ -17,7 +30,8 @@
       tags:
         - always
 
-- name: Remove multicloud snapshots demo configuration from AAP
+# Phase 1: remove all controller objects while the organization still exists.
+- name: "Phase 1 — Remove controller objects (keep organization)"
   hosts: localhost
   gather_facts: false
   collections:
@@ -28,10 +42,29 @@
     - ../group_vars/all/demo_variables.yml
   vars:
     platform_state: absent
-    # Labels cannot be deleted via the Controller API (state: absent is not
-    # supported by the labels module). Override to empty so dispatch skips them.
+    # Keep the organization alive during this phase so that object
+    # lookups by org name succeed.
+    aap_organizations: []
+    # Labels module does not support state: absent — skip them.
     controller_labels: []
   roles:
     - role: infra.aap_configuration.dispatch
+      tags:
+        - all
+
+# Phase 2: remove the (now empty) organization.
+- name: "Phase 2 — Remove demo organization"
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - infra.aap_configuration
+    - ansible.builtin
+  vars_files:
+    - ../vault.yml
+    - ../group_vars/all/demo_variables.yml
+  vars:
+    platform_state: absent
+  roles:
+    - role: infra.aap_configuration.gateway_organizations
       tags:
         - all
