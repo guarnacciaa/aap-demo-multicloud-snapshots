@@ -162,10 +162,10 @@ podman push --tls-verify=false <aap_host>:8444/ee-multicloud-snapshots:latest
 
 **Register in AAP**
 
-Update `group_vars/all/execution_environments.yml` with the full image reference you pushed (registry host, image name, and tag):
+Set `demo_execution_environment_image` in `group_vars/all/demo_variables.yml` to the full image reference you pushed (registry host, image name, and tag):
 
 ```yaml
-image: <aap_host>/ee-multicloud-snapshots:latest
+demo_execution_environment_image: <aap_host>/ee-multicloud-snapshots:latest
 ```
 
 Re-apply CasC:
@@ -189,6 +189,7 @@ If job templates fail to pull the image, create a **Container Registry** credent
 | `x509: certificate signed by unknown authority` on `podman login` | Self-signed or internal CA certificate on the Hub registry | Use `podman login --tls-verify=false` and `podman push --tls-verify=false`; disable **Verify SSL** on the Container Registry credential in AAP |
 | `401 Unauthorized` on `podman login` or push | Wrong AAP credentials or insufficient Hub permissions | Use a user with permission to create containers on Hub (for example the gateway admin); authenticate through the Platform Gateway |
 | Connection refused on push | Wrong registry host or port | Confirm `<aap_host>` matches `aap_hostname`; retry with port `8444` as shown above |
+| `couldn't resolve module/action 'azure.azcollection.*'` at job runtime | Job uses the placeholder EE (`quay.io/ansible/ansible-runner`) instead of the custom image | Set `demo_execution_environment_image` in `demo_variables.yml`, re-run `aap_config.yml`, and confirm the job template points to `ee-multicloud-snapshots` |
 
 ## Apply CasC
 
