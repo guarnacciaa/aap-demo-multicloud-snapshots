@@ -6,8 +6,8 @@
 #   2. Demo     — run the multicloud snapshot and retention scenario
 #   3. Teardown — clean up snapshots and destroy all provisioned infrastructure
 #
-# The setup workflow must complete before running the demo workflow.
-# The teardown workflow is meant for post-demo cleanup.
+# Uses simplified_workflow_nodes (string template names + edge lists) which
+# avoids module-level issues with workflow_nodes / unified_job_template.
 
 controller_workflows:
   # --- 1. Infrastructure setup workflow ---
@@ -16,64 +16,52 @@ controller_workflows:
       Provision Azure VM and AWS EC2 instance with networking.
       Run this before the snapshot demo workflow.
     organization: "{{ demo_organization_name }}"
-    inventory: "{{ demo_inventory_name }}"
-    project: "{{ demo_project_name }}"
     labels:
       - "{{ demo_label_name }}"
-    workflow_nodes:
+    state: present
+    simplified_workflow_nodes:
       - identifier: provision_azure
-        unified_job_template:
-          organization:
-            name: "{{ demo_organization_name }}"
-          name: Provision - Azure VM
+        unified_job_template: Provision - Azure VM
+        success_nodes: []
+        failure_nodes: []
+        always_nodes: []
       - identifier: provision_aws
-        unified_job_template:
-          organization:
-            name: "{{ demo_organization_name }}"
-          name: Provision - AWS EC2
-        # Azure and AWS provisioning run in parallel (no dependency between
-        # them). Both feed into a success convergence point at the workflow
-        # level. We do not set a "related" key here, so AAP treats both root
-        # nodes as concurrent starts.
+        unified_job_template: Provision - AWS EC2
+        success_nodes: []
+        failure_nodes: []
+        always_nodes: []
 
   # --- 2. Snapshot and retention demo workflow ---
   - name: WF - Multicloud snapshot and retention
     description: Snapshot Azure and AWS VMs by hostname, verify, optionally purge old snapshots.
     organization: "{{ demo_organization_name }}"
-    inventory: "{{ demo_inventory_name }}"
-    project: "{{ demo_project_name }}"
     labels:
       - "{{ demo_label_name }}"
-    workflow_nodes:
+    state: present
+    simplified_workflow_nodes:
       - identifier: snapshot_azure
-        unified_job_template:
-          organization:
-            name: "{{ demo_organization_name }}"
-          name: Snapshot - Azure by hostname
+        unified_job_template: Snapshot - Azure by hostname
+        success_nodes:
+          - snapshot_aws
+        failure_nodes: []
+        always_nodes: []
       - identifier: snapshot_aws
-        unified_job_template:
-          organization:
-            name: "{{ demo_organization_name }}"
-          name: Snapshot - AWS by hostname
-        related:
-          - identifier: snapshot_azure
-            type: success
+        unified_job_template: Snapshot - AWS by hostname
+        success_nodes:
+          - verify_snapshots
+        failure_nodes: []
+        always_nodes: []
       - identifier: verify_snapshots
-        unified_job_template:
-          organization:
-            name: "{{ demo_organization_name }}"
-          name: Snapshot - Verify
-        related:
-          - identifier: snapshot_aws
-            type: success
+        unified_job_template: Snapshot - Verify
+        success_nodes:
+          - cleanup_snapshots
+        failure_nodes: []
+        always_nodes: []
       - identifier: cleanup_snapshots
-        unified_job_template:
-          organization:
-            name: "{{ demo_organization_name }}"
-          name: Snapshot - Cleanup (optional)
-        related:
-          - identifier: verify_snapshots
-            type: success
+        unified_job_template: Snapshot - Cleanup (optional)
+        success_nodes: []
+        failure_nodes: []
+        always_nodes: []
 
   # --- 3. Full teardown workflow ---
   - name: WF - Demo teardown (destroy infrastructure)
@@ -81,38 +69,24 @@ controller_workflows:
       Clean up snapshots and destroy all demo infrastructure (Azure VM,
       AWS EC2, networking). Run after the demo is complete.
     organization: "{{ demo_organization_name }}"
-    inventory: "{{ demo_inventory_name }}"
-    project: "{{ demo_project_name }}"
     labels:
       - "{{ demo_label_name }}"
-    workflow_nodes:
-      # Step 1: clean up demo snapshots first (both clouds in parallel).
+    state: present
+    simplified_workflow_nodes:
       - identifier: cleanup_snapshots
-        unified_job_template:
-          organization:
-            name: "{{ demo_organization_name }}"
-          name: Snapshot - Cleanup (optional)
-        extra_data:
-          enable_snapshot_cleanup: true
-          snapshot_retention_days: 0
-
-      # Step 2: deprovision Azure VM after snapshot cleanup.
+        unified_job_template: Snapshot - Cleanup (optional)
+        success_nodes:
+          - deprovision_azure
+          - deprovision_aws
+        failure_nodes: []
+        always_nodes: []
       - identifier: deprovision_azure
-        unified_job_template:
-          organization:
-            name: "{{ demo_organization_name }}"
-          name: Deprovision - Azure VM
-        related:
-          - identifier: cleanup_snapshots
-            type: success
-
-      # Step 3: deprovision AWS EC2 after snapshot cleanup.
-      # Runs in parallel with Azure deprovision since they are independent.
+        unified_job_template: Deprovision - Azure VM
+        success_nodes: []
+        failure_nodes: []
+        always_nodes: []
       - identifier: deprovision_aws
-        unified_job_template:
-          organization:
-            name: "{{ demo_organization_name }}"
-          name: Deprovision - AWS EC2
-        related:
-          - identifier: cleanup_snapshots
-            type: success
+        unified_job_template: Deprovision - AWS EC2
+        success_nodes: []
+        failure_nodes: []
+        always_nodes: []
