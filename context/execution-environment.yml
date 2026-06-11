@@ -2,17 +2,20 @@
 # Build a custom EE when the platform default lacks Azure/AWS SDK dependencies.
 # See docs/setup.md for ansible-builder instructions.
 version: 3
+
 build_arg_defaults:
   ANSIBLE_GALAXY_CLI_COLLECTION_OPTS: "-v"
+
+images:
+  base_image:
+    name: registry.redhat.io/ansible-automation-platform-26/ee-minimal-rhel9:latest
+
+# ee-minimal-rhel9 uses microdnf, not dnf (AAP 2.6 EE builder reference).
+options:
+  package_manager_path: /usr/bin/microdnf
+
 dependencies:
-  galaxy:
-    collections:
-      - name: infra.aap_configuration
-        source: https://cloud.redhat.com/api/automation-hub/
-      - name: azure.azcollection
-        source: https://cloud.redhat.com/api/automation-hub/
-      - name: amazon.aws
-        source: https://cloud.redhat.com/api/automation-hub/
+  galaxy: requirements.yml
   python:
     - boto3
     - botocore
@@ -24,3 +27,21 @@ dependencies:
   system:
     - gcc [platform:rpm]
     - python3-devel [platform:rpm]
+
+# Project-root ansible.cfg (with Automation Hub token) is copied into the build
+# context so ansible-galaxy can install certified collections during the build.
+additional_build_files:
+  - src: ../ansible.cfg
+    dest: configs
+
+additional_build_steps:
+  prepend_galaxy:
+    - COPY _build/configs/ansible.cfg /etc/ansible/ansible.cfg
+    - ENV ANSIBLE_GALAXY_SERVER_LIST=automation_hub
+    - ENV ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_URL=https://console.redhat.com/api/automation-hub/content/published/
+    - ENV ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_AUTH_URL=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+    # Pass the Hub token from the build host; also set in ../ansible.cfg when present.
+    - ARG ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_TOKEN
+  append_final:
+    # Do not ship ansible.cfg in the final image (may contain tokens).
+    - RUN rm -f /etc/ansible/ansible.cfg

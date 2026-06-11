@@ -72,14 +72,41 @@ Store these secrets in `vault.yml`:
 
 ## Custom Execution Environment (optional)
 
-If your platform EE lacks cloud SDKs:
+If your platform EE lacks cloud SDKs, build a custom image from `context/execution-environment.yml`. The definition uses the AAP 2.6 `ee-minimal-rhel9` base image from `registry.redhat.io` (not the legacy `quay.io/ansible/ansible-runner` default).
+
+**Prerequisites**
+
+1. Log in to the Red Hat container registry and pull the base image:
+
+   ```bash
+   podman login registry.redhat.io
+   podman pull registry.redhat.io/ansible-automation-platform-26/ee-minimal-rhel9:latest
+   ```
+
+2. Copy and configure `ansible.cfg` at the artifact root (Automation Hub token required for certified collections):
+
+   ```bash
+   cp ansible.cfg.example ansible.cfg
+   # Edit ansible.cfg and set your Automation Hub token.
+   ```
+
+3. Export the Hub token for the build (or rely on the token in `ansible.cfg`):
+
+   ```bash
+   export ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_TOKEN="$(<your-hub-token>)"
+   ```
+
+**Build and register**
 
 ```bash
 cd context
-ansible-builder build -f execution-environment.yml -t ee-multicloud-snapshots:latest
+ansible-builder build \
+  -f execution-environment.yml \
+  -t ee-multicloud-snapshots:latest \
+  --build-arg ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_TOKEN
 ```
 
-Push the image to your registry and update `group_vars/all/execution_environments.yml`.
+Push the image to your registry and update `group_vars/all/execution_environments.yml` with the full image reference (registry, name, and tag).
 
 ## Apply CasC
 

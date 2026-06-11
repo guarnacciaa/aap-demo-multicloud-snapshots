@@ -1,0 +1,10 @@
+---
+# Certified collections installed into the custom EE at build time.
+# Requires a valid Automation Hub token (see docs/setup.md).
+collections:
+  - name: infra.aap_configuration
+    source: https://cloud.redhat.com/api/automation-hub/content/published/
+  - name: azure.azcollection
+    source: https://cloud.redhat.com/api/automation-hub/content/published/
+  - name: amazon.aws
+    source: https://cloud.redhat.com/api/automation-hub/content/published/
