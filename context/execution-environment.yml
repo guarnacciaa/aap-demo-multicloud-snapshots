@@ -27,6 +27,7 @@ dependencies:
   system:
     - gcc [platform:rpm]
     - python3-devel [platform:rpm]
+    - python3-pip [platform:rpm]
 
 # Project-root ansible.cfg (Automation Hub token) is required before build.
 additional_build_files:
@@ -34,6 +35,9 @@ additional_build_files:
     dest: configs
 
 additional_build_steps:
+  prepend_builder:
+    # ee-minimal-rhel9 builder stage may lack pip; required for python deps.
+    - RUN /usr/bin/microdnf install -y python3-pip && /usr/bin/microdnf clean all
   prepend_galaxy:
     # Use the same Hub server_list and token as local collection installs.
     - COPY _build/configs/ansible.cfg /etc/ansible/ansible.cfg

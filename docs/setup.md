@@ -103,9 +103,14 @@ If your platform EE lacks cloud SDKs, build a custom image from `context/executi
 
 **Build and register**
 
+Run the build from the artifact root so paths to `ansible.cfg` and the build context resolve correctly:
+
 ```bash
-cd context
-ansible-builder build -f execution-environment.yml -t ee-multicloud-snapshots:latest
+cd ~/aap-demo-multicloud-snapshots
+ansible-builder build \
+  -f context/execution-environment.yml \
+  -t ee-multicloud-snapshots:latest \
+  context
 ```
 
 Push the image to your registry and update `group_vars/all/execution_environments.yml` with the full image reference (registry, name, and tag).
@@ -117,6 +122,7 @@ Push the image to your registry and update `group_vars/all/execution_environment
 | `HTTP Code: 401, Message: Unauthorized` during `ansible-galaxy collection install` in the build | Missing or placeholder token in `../ansible.cfg`, or `ansible.cfg` not created at artifact root | Create `ansible.cfg` from the example and set a valid Hub token; confirm with the local `ansible-galaxy` command above |
 | `explicit_requirement_infra.aap_configuration ... 401` | Old `context/requirements.yml` with per-collection `source:` URLs or validated collections in the EE | Use the current `context/requirements.yml` (certified cloud collections only; no `source:` keys) |
 | Warning about `quay.io/ansible/ansible-runner` | Missing `images.base_image` in an old definition file | Use the current `context/execution-environment.yml` with `ee-minimal-rhel9` |
+| `/usr/bin/python3: No module named pip` in the builder stage | `ee-minimal-rhel9` builder image lacks pip until installed | Use the current `context/execution-environment.yml` (`prepend_builder` installs `python3-pip`) |
 
 ## Apply CasC
 
