@@ -12,13 +12,29 @@
     - ansible.builtin
 
   vars:
-    target_hostname: "{{ aws_ec2_hostname | mandatory }}"
-    aws_region: "{{ aws_region | default('us-east-1') }}"
-    aws_vpc_name: "{{ aws_vpc_name | default('demo-multicloud-vpc') }}"
-    aws_sg_name: "{{ aws_sg_name | default('demo-multicloud-sg') }}"
-    aws_key_pair_name: "{{ aws_key_pair_name | default('demo-multicloud-keypair') }}"
-    aws_delete_key_pair: "{{ aws_delete_key_pair | default(false) | bool }}"
     demo_tag: multicloud-snapshots
+
+  pre_tasks:
+    - name: Validate required AWS deprovisioning variables
+      ansible.builtin.assert:
+        that:
+          - aws_ec2_hostname is defined
+        fail_msg: >-
+          Set aws_ec2_hostname in demo_variables.yml or job template extra variables
+          before deprovisioning.
+      tags:
+        - always
+
+    - name: Resolve AWS deprovisioning variables with defaults
+      ansible.builtin.set_fact:
+        target_hostname: "{{ aws_ec2_hostname }}"
+        aws_region: "{{ aws_region | default('us-east-1') }}"
+        aws_vpc_name: "{{ aws_vpc_name | default('demo-multicloud-vpc') }}"
+        aws_sg_name: "{{ aws_sg_name | default('demo-multicloud-sg') }}"
+        aws_key_pair_name: "{{ aws_key_pair_name | default('demo-multicloud-keypair') }}"
+        aws_delete_key_pair: "{{ aws_delete_key_pair | default(false) | bool }}"
+      tags:
+        - always
 
   tasks:
     - name: Terminate the demo EC2 instance

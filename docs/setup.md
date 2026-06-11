@@ -191,6 +191,22 @@ If job templates fail to pull the image:
 
 For local `podman pull` tests, use `--tls-verify=false` (Controller job pulls use the credential instead).
 
+**Trust the platform CA on the AAP node (growth installs)**
+
+On container **growth** (all-in-one) deployments, job pods pull the EE image on the AAP host via Podman. The Container Registry credential with **Verify SSL** disabled covers most cases, but some installs still fail with `x509: certificate signed by unknown authority` because the platform self-signed CA was never added to the host OS trust store.
+
+If credential wiring does not fix the pull, install the AAP install CA on the node (run as root on the AAP host):
+
+```bash
+# Default path for the containerized installer; adjust if your install dir differs.
+sudo cp ~/aap/tls/ca.cert /etc/pki/ca-trust/source/anchors/aap-platform-ca.crt
+sudo update-ca-trust extract
+```
+
+Then retry the job (or test with `podman pull <aap_host>/ee-multicloud-snapshots:latest` without `--tls-verify=false`). This is a one-time step per node; the containerized installer does not always copy the CA into the system trust store automatically.
+
+Use both approaches when needed: **Verify SSL** off on the registry credential for Controller/receptor auth, and the system CA trust when the runtime still validates TLS against the OS store.
+
 **Troubleshooting**
 
 | Symptom | Likely cause | Fix |
@@ -205,8 +221,8 @@ For local `podman pull` tests, use `--tls-verify=false` (Controller job pulls us
 | `401 Unauthorized` on `podman login` or push | Wrong AAP credentials or insufficient Hub permissions | Use a user with permission to create containers on Hub (for example the gateway admin); authenticate through the Platform Gateway |
 | Connection refused on push | Wrong registry host or port | Confirm `<aap_host>` matches `aap_hostname`; retry with port `8444` as shown above |
 | `couldn't resolve module/action 'azure.azcollection.*'` at job runtime | Job uses the placeholder EE (`quay.io/ansible/ansible-runner`) instead of the custom image | Set `demo_execution_environment_image` in `demo_variables.yml`, re-run `aap_config.yml`, and confirm the job template points to `ee-multicloud-snapshots` |
-| `x509: certificate signed by unknown authority` when Controller pulls the EE | Hub registry uses a self-signed certificate and the EE has no registry credential with SSL verification disabled | Re-run CasC after setting `demo_execution_environment_image`; confirm `PAH Container Registry` credential exists with **Verify SSL** off and is linked to the EE |
-| `unable to copy from source docker://<host>/ee-...` with x509 error | Same as above, or `hub_registry_host` does not match the registry in `demo_execution_environment_image` (including `:8444` if used for push) | Align `demo_execution_environment_image` and `hub_registry_host`; re-run `aap_config.yml --tags execution_environments,credentials`; in UI confirm EE shows **PAH Container Registry** with **Verify SSL** disabled |
+| `x509: certificate signed by unknown authority` when Controller pulls the EE | Hub registry uses a self-signed certificate; EE missing registry credential and/or host OS does not trust the platform CA | Link **PAH Container Registry** with **Verify SSL** off to the EE; if pull still fails on growth installs, copy `~/aap/tls/ca.cert` to `/etc/pki/ca-trust/source/anchors/` and run `update-ca-trust extract` on the AAP node |
+| `unable to copy from source docker://<host>/ee-...` with x509 error | Same as above, or `hub_registry_host` does not match the registry in `demo_execution_environment_image` (including `:8444` if used for push) | Align image host and credential; re-run CasC; on growth nodes, trust the platform CA as described above |
 | `Demo-Multicloud` inventory shows no hosts | Constructed inventory missing `input_inventories`, or hosts only in child inventories | Re-run `aap_config.yml`; confirm hosts under **Azure-Resources** / **AWS-Resources**; run **Update - Multicloud inventory hosts** after setup workflow |
 | Sync task fails with HTTP 404 on `/api/v2/` | Legacy Controller API path on Platform Gateway | Use `ansible.controller` modules only; gateway path is `/api/controller/v2/` (AAP 2.5+) |
 | Sync task: inventory source not found | Wrong source name (`Demo-Multicloud` vs auto-created name) | Source is `Auto-created source for: Demo-Multicloud`; sync task resolves it via API lookup |

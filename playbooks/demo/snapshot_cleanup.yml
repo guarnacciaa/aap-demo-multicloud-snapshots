@@ -9,12 +9,23 @@
     - amazon.aws
     - ansible.builtin
 
-  vars:
-    enable_snapshot_cleanup: "{{ enable_snapshot_cleanup | default(false) }}"
-    snapshot_retention_days: "{{ snapshot_retention_days | default(30) | int }}"
-    snapshot_name_prefix: "{{ snapshot_name_prefix | default('poc-snapshot') }}"
-    azure_resource_group: "{{ azure_resource_group | mandatory }}"
-    aws_region: "{{ aws_region | default('us-east-1') }}"
+  pre_tasks:
+    - name: Resolve snapshot cleanup variables with defaults
+      ansible.builtin.set_fact:
+        enable_snapshot_cleanup: "{{ enable_snapshot_cleanup | default(false) | bool }}"
+        snapshot_retention_days: "{{ snapshot_retention_days | default(30) | int }}"
+        snapshot_name_prefix: "{{ snapshot_name_prefix | default('poc-snapshot') }}"
+        aws_region: "{{ aws_region | default('us-east-1') }}"
+      tags:
+        - always
+
+    - name: Validate required snapshot cleanup variables
+      ansible.builtin.assert:
+        that:
+          - azure_resource_group is defined
+        fail_msg: Set azure_resource_group in demo_variables.yml or job template extra variables.
+      tags:
+        - always
 
   tasks:
     - name: Skip cleanup when enable_snapshot_cleanup is false

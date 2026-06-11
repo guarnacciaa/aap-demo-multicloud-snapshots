@@ -12,22 +12,38 @@
     - ansible.builtin
 
   vars:
-    target_hostname: "{{ azure_vm_hostname | mandatory }}"
-    azure_resource_group: "{{ azure_resource_group | mandatory }}"
-    azure_location: "{{ azure_location | default('eastus') }}"
-    azure_vm_size: "{{ azure_vm_size | default('Standard_B2s') }}"
-    azure_vm_admin_user: "{{ azure_vm_admin_user | default('azureuser') }}"
-    azure_vm_admin_password: "{{ azure_vm_admin_password | mandatory }}"
-    azure_vnet_name: "{{ azure_vnet_name | default('demo-multicloud-vnet') }}"
-    azure_vnet_cidr: "{{ azure_vnet_cidr | default('10.0.0.0/16') }}"
-    azure_subnet_name: "{{ azure_subnet_name | default('demo-multicloud-subnet') }}"
-    azure_subnet_cidr: "{{ azure_subnet_cidr | default('10.0.1.0/24') }}"
-    azure_nsg_name: "{{ azure_nsg_name | default('demo-multicloud-nsg') }}"
-    azure_public_ip_name: "{{ azure_public_ip_name | default(target_hostname + '-pip') }}"
-    azure_nic_name: "{{ azure_nic_name | default(target_hostname + '-nic') }}"
-    # RHEL 9 by default; override via extra vars or demo_variables.yml.
-    azure_vm_image: "{{ azure_vm_image | default({'publisher': 'RedHat', 'offer': 'RHEL', 'sku': '9_4', 'version': 'latest'}) }}"
     demo_tag: multicloud-snapshots
+
+  pre_tasks:
+    # Play vars must not reference their own name (recursive loop). Resolve defaults here instead.
+    - name: Validate required Azure provisioning variables
+      ansible.builtin.assert:
+        that:
+          - azure_vm_hostname is defined
+          - azure_resource_group is defined
+          - azure_vm_admin_password is defined
+        fail_msg: >-
+          Set azure_vm_hostname, azure_resource_group, and azure_vm_admin_password
+          in demo_variables.yml or job template extra variables before provisioning.
+      tags:
+        - always
+
+    - name: Resolve Azure provisioning variables with defaults
+      ansible.builtin.set_fact:
+        target_hostname: "{{ azure_vm_hostname }}"
+        azure_location: "{{ azure_location | default('eastus') }}"
+        azure_vm_size: "{{ azure_vm_size | default('Standard_B2s') }}"
+        azure_vm_admin_user: "{{ azure_vm_admin_user | default('azureuser') }}"
+        azure_vnet_name: "{{ azure_vnet_name | default('demo-multicloud-vnet') }}"
+        azure_vnet_cidr: "{{ azure_vnet_cidr | default('10.0.0.0/16') }}"
+        azure_subnet_name: "{{ azure_subnet_name | default('demo-multicloud-subnet') }}"
+        azure_subnet_cidr: "{{ azure_subnet_cidr | default('10.0.1.0/24') }}"
+        azure_nsg_name: "{{ azure_nsg_name | default('demo-multicloud-nsg') }}"
+        azure_public_ip_name: "{{ azure_public_ip_name | default(azure_vm_hostname + '-pip') }}"
+        azure_nic_name: "{{ azure_nic_name | default(azure_vm_hostname + '-nic') }}"
+        azure_vm_image: "{{ azure_vm_image | default({'publisher': 'RedHat', 'offer': 'RHEL', 'sku': '9_4', 'version': 'latest'}) }}"
+      tags:
+        - always
 
   tasks:
     - name: Ensure Azure resource group exists

@@ -8,10 +8,21 @@
     - amazon.aws
     - ansible.builtin
 
-  vars:
-    target_hostname: "{{ target_hostname | mandatory }}"
-    aws_region: "{{ aws_region | default('us-east-1') }}"
-    snapshot_name_prefix: "{{ snapshot_name_prefix | default('poc-snapshot') }}"
+  pre_tasks:
+    - name: Validate required AWS snapshot variables
+      ansible.builtin.assert:
+        that:
+          - target_hostname is defined
+        fail_msg: Pass target_hostname when running AWS snapshot jobs.
+      tags:
+        - always
+
+    - name: Resolve AWS snapshot variables with defaults
+      ansible.builtin.set_fact:
+        aws_region: "{{ aws_region | default('us-east-1') }}"
+        snapshot_name_prefix: "{{ snapshot_name_prefix | default('poc-snapshot') }}"
+      tags:
+        - always
 
   tasks:
     - name: Look up EC2 instance by Name tag matching hostname

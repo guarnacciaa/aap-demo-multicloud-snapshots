@@ -8,10 +8,22 @@
     - azure.azcollection
     - ansible.builtin
 
-  vars:
-    target_hostname: "{{ target_hostname | mandatory }}"
-    azure_resource_group: "{{ azure_resource_group | mandatory }}"
-    snapshot_name_prefix: "{{ snapshot_name_prefix | default('poc-snapshot') }}"
+  pre_tasks:
+    - name: Validate required Azure snapshot variables
+      ansible.builtin.assert:
+        that:
+          - target_hostname is defined
+          - azure_resource_group is defined
+        fail_msg: >-
+          Pass target_hostname and azure_resource_group when running Azure snapshot jobs.
+      tags:
+        - always
+
+    - name: Resolve Azure snapshot variables with defaults
+      ansible.builtin.set_fact:
+        snapshot_name_prefix: "{{ snapshot_name_prefix | default('poc-snapshot') }}"
+      tags:
+        - always
 
   tasks:
     - name: Look up Azure virtual machine by hostname

@@ -11,15 +11,29 @@
     - azure.azcollection
     - ansible.builtin
 
-  vars:
-    target_hostname: "{{ azure_vm_hostname | mandatory }}"
-    azure_resource_group: "{{ azure_resource_group | mandatory }}"
-    azure_vnet_name: "{{ azure_vnet_name | default('demo-multicloud-vnet') }}"
-    azure_subnet_name: "{{ azure_subnet_name | default('demo-multicloud-subnet') }}"
-    azure_nsg_name: "{{ azure_nsg_name | default('demo-multicloud-nsg') }}"
-    azure_public_ip_name: "{{ azure_public_ip_name | default(target_hostname + '-pip') }}"
-    azure_nic_name: "{{ azure_nic_name | default(target_hostname + '-nic') }}"
-    azure_delete_resource_group: "{{ azure_delete_resource_group | default(false) | bool }}"
+  pre_tasks:
+    - name: Validate required Azure deprovisioning variables
+      ansible.builtin.assert:
+        that:
+          - azure_vm_hostname is defined
+          - azure_resource_group is defined
+        fail_msg: >-
+          Set azure_vm_hostname and azure_resource_group in demo_variables.yml
+          or job template extra variables before deprovisioning.
+      tags:
+        - always
+
+    - name: Resolve Azure deprovisioning variables with defaults
+      ansible.builtin.set_fact:
+        target_hostname: "{{ azure_vm_hostname }}"
+        azure_vnet_name: "{{ azure_vnet_name | default('demo-multicloud-vnet') }}"
+        azure_subnet_name: "{{ azure_subnet_name | default('demo-multicloud-subnet') }}"
+        azure_nsg_name: "{{ azure_nsg_name | default('demo-multicloud-nsg') }}"
+        azure_public_ip_name: "{{ azure_public_ip_name | default(azure_vm_hostname + '-pip') }}"
+        azure_nic_name: "{{ azure_nic_name | default(azure_vm_hostname + '-nic') }}"
+        azure_delete_resource_group: "{{ azure_delete_resource_group | default(false) | bool }}"
+      tags:
+        - always
 
   tasks:
     # VM must be removed before its NIC and disks can be released.

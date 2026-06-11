@@ -9,10 +9,21 @@
     - amazon.aws
     - ansible.builtin
 
-  vars:
-    snapshot_name_prefix: "{{ snapshot_name_prefix | default('poc-snapshot') }}"
-    azure_resource_group: "{{ azure_resource_group | mandatory }}"
-    aws_region: "{{ aws_region | default('us-east-1') }}"
+  pre_tasks:
+    - name: Validate required snapshot verification variables
+      ansible.builtin.assert:
+        that:
+          - azure_resource_group is defined
+        fail_msg: Set azure_resource_group in demo_variables.yml or job template extra variables.
+      tags:
+        - always
+
+    - name: Resolve snapshot verification variables with defaults
+      ansible.builtin.set_fact:
+        snapshot_name_prefix: "{{ snapshot_name_prefix | default('poc-snapshot') }}"
+        aws_region: "{{ aws_region | default('us-east-1') }}"
+      tags:
+        - always
 
   tasks:
     - name: List Azure snapshots tagged for this demo

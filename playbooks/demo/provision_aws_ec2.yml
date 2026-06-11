@@ -11,17 +11,33 @@
     - ansible.builtin
 
   vars:
-    target_hostname: "{{ aws_ec2_hostname | mandatory }}"
-    aws_region: "{{ aws_region | default('us-east-1') }}"
-    aws_instance_type: "{{ aws_instance_type | default('t3.small') }}"
-    aws_ami_id: "{{ aws_ami_id | mandatory }}"
-    aws_key_pair_name: "{{ aws_key_pair_name | default('demo-multicloud-keypair') }}"
-    aws_vpc_cidr: "{{ aws_vpc_cidr | default('10.1.0.0/16') }}"
-    aws_subnet_cidr: "{{ aws_subnet_cidr | default('10.1.1.0/24') }}"
-    aws_vpc_name: "{{ aws_vpc_name | default('demo-multicloud-vpc') }}"
-    aws_subnet_name: "{{ aws_subnet_name | default('demo-multicloud-subnet') }}"
-    aws_sg_name: "{{ aws_sg_name | default('demo-multicloud-sg') }}"
     demo_tag: multicloud-snapshots
+
+  pre_tasks:
+    - name: Validate required AWS provisioning variables
+      ansible.builtin.assert:
+        that:
+          - aws_ec2_hostname is defined
+          - aws_ami_id is defined
+        fail_msg: >-
+          Set aws_ec2_hostname and aws_ami_id in demo_variables.yml
+          or job template extra variables before provisioning.
+      tags:
+        - always
+
+    - name: Resolve AWS provisioning variables with defaults
+      ansible.builtin.set_fact:
+        target_hostname: "{{ aws_ec2_hostname }}"
+        aws_region: "{{ aws_region | default('us-east-1') }}"
+        aws_instance_type: "{{ aws_instance_type | default('t3.small') }}"
+        aws_key_pair_name: "{{ aws_key_pair_name | default('demo-multicloud-keypair') }}"
+        aws_vpc_cidr: "{{ aws_vpc_cidr | default('10.1.0.0/16') }}"
+        aws_subnet_cidr: "{{ aws_subnet_cidr | default('10.1.1.0/24') }}"
+        aws_vpc_name: "{{ aws_vpc_name | default('demo-multicloud-vpc') }}"
+        aws_subnet_name: "{{ aws_subnet_name | default('demo-multicloud-subnet') }}"
+        aws_sg_name: "{{ aws_sg_name | default('demo-multicloud-sg') }}"
+      tags:
+        - always
 
   tasks:
     - name: Create VPC for the demo environment
