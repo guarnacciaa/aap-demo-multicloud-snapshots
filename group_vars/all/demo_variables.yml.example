@@ -22,25 +22,69 @@ demo_execution_environment_name: ee-multicloud-snapshots
 demo_project_scm_url: https://github.com/YOUR_ORG/aap-demo-multicloud-snapshots.git
 demo_project_scm_branch: main
 
-# --- Azure ---
+# ============================================================================
+# Azure settings
+# ============================================================================
+
 azure_subscription_id: CHANGE_ME
 azure_tenant_id: CHANGE_ME
 azure_client_id: "{{ vault_azure_client_id | default('CHANGE_ME') }}"
 azure_client_secret: "{{ vault_azure_client_secret }}"
 azure_resource_group: CHANGE_ME
-azure_vm_hostname: azure-demo-vm01
+azure_location: eastus
 
-# --- AWS ---
+# --- Azure VM provisioning ---
+azure_vm_hostname: azure-demo-vm01
+azure_vm_size: Standard_B2s
+azure_vm_admin_user: azureuser
+azure_vm_admin_password: "{{ vault_azure_vm_admin_password }}"
+azure_vm_image:
+  publisher: RedHat
+  offer: RHEL
+  sku: "9_4"
+  version: latest
+
+# --- Azure networking ---
+azure_vnet_name: demo-multicloud-vnet
+azure_vnet_cidr: "10.0.0.0/16"
+azure_subnet_name: demo-multicloud-subnet
+azure_subnet_cidr: "10.0.1.0/24"
+azure_nsg_name: demo-multicloud-nsg
+
+# ============================================================================
+# AWS settings
+# ============================================================================
+
 aws_region: us-east-1
 aws_access_key: "{{ vault_aws_access_key | default('CHANGE_ME') }}"
 aws_secret_key: "{{ vault_aws_secret_key }}"
-aws_ec2_hostname: aws-demo-vm01
 
-# --- Snapshot policy ---
+# --- AWS EC2 provisioning ---
+aws_ec2_hostname: aws-demo-vm01
+aws_instance_type: t3.small
+# RHEL 9 AMI ID varies by region. Find yours at:
+# https://access.redhat.com/solutions/15356 or use the AWS EC2 console.
+aws_ami_id: CHANGE_ME
+aws_key_pair_name: demo-multicloud-keypair
+
+# --- AWS networking ---
+aws_vpc_name: demo-multicloud-vpc
+aws_vpc_cidr: "10.1.0.0/16"
+aws_subnet_name: demo-multicloud-subnet
+aws_subnet_cidr: "10.1.1.0/24"
+aws_sg_name: demo-multicloud-sg
+
+# ============================================================================
+# Snapshot policy
+# ============================================================================
+
 snapshot_retention_days: 30
 enable_snapshot_cleanup: false
 snapshot_name_prefix: poc-snapshot
 
+# ============================================================================
 # Credential names (must match credentials.yml)
+# ============================================================================
+
 azure_credential_name: Azure Service Principal
 aws_credential_name: AWS IAM User

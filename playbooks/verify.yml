@@ -1,5 +1,7 @@
 # Description: Smoke-test playbook for local validation (syntax and module wiring).
-# Does not create snapshots; checks required variables and collection imports.
+# Does not create or destroy any resources; checks required variables and
+# collection imports. Run this after copying demo_variables.yml.example to
+# demo_variables.yml and filling in all CHANGE_ME placeholders.
 ---
 - name: Verify multicloud snapshots demo prerequisites
   hosts: localhost
@@ -8,15 +10,35 @@
     - ansible.builtin
 
   tasks:
-    - name: Confirm required demo variables are defined
+    - name: Confirm required AAP and demo variables are defined
       ansible.builtin.assert:
         that:
           - demo_organization_name is defined
           - demo_project_name is defined
+        fail_msg: Copy demo_variables.yml.example to demo_variables.yml and set required values.
+      tags:
+        - verify
+
+    - name: Confirm Azure variables for provisioning and snapshots
+      ansible.builtin.assert:
+        that:
           - azure_resource_group is defined
           - azure_vm_hostname is defined
+          - azure_location is defined
+          - azure_vm_size is defined
+          - azure_vm_admin_user is defined
+        fail_msg: Azure provisioning variables are incomplete. Check demo_variables.yml.
+      tags:
+        - verify
+
+    - name: Confirm AWS variables for provisioning and snapshots
+      ansible.builtin.assert:
+        that:
           - aws_ec2_hostname is defined
-        fail_msg: Copy demo_variables.yml.example to demo_variables.yml and set required values.
+          - aws_region is defined
+          - aws_ami_id is defined
+          - aws_instance_type is defined
+        fail_msg: AWS provisioning variables are incomplete. Check demo_variables.yml.
       tags:
         - verify
 
@@ -29,8 +51,28 @@
       tags:
         - verify
 
+    - name: Confirm azure.azcollection collection is installed
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection list azure.azcollection
+      register: azure_collection
+      changed_when: false
+      failed_when: azure_collection.rc != 0
+      tags:
+        - verify
+
+    - name: Confirm amazon.aws collection is installed
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection list amazon.aws
+      register: aws_collection
+      changed_when: false
+      failed_when: aws_collection.rc != 0
+      tags:
+        - verify
+
     - name: Report verification status
       ansible.builtin.debug:
-        msg: Prerequisite checks passed. Run playbooks/demo/snapshot_*.yml against live clouds for functional tests.
+        msg: >-
+          Prerequisite checks passed. Run the setup workflow to provision
+          infrastructure, then launch the snapshot workflow.
       tags:
         - verify

@@ -1,0 +1,162 @@
+# Description: Provision a demo Azure VM with all required networking resources.
+# This playbook creates a complete Azure environment from scratch: resource group,
+# virtual network, subnet, NSG, public IP, NIC, and the VM itself.
+# Run before snapshot playbooks. Safe to re-run (idempotent).
+# Counterpart: deprovision_azure_vm.yml (destroys all resources created here).
+---
+- name: Provision Azure demo VM and networking for multicloud snapshots
+  hosts: localhost
+  gather_facts: true
+  collections:
+    - azure.azcollection
+    - ansible.builtin
+
+  vars:
+    target_hostname: "{{ azure_vm_hostname | mandatory }}"
+    azure_resource_group: "{{ azure_resource_group | mandatory }}"
+    azure_location: "{{ azure_location | default('eastus') }}"
+    azure_vm_size: "{{ azure_vm_size | default('Standard_B2s') }}"
+    azure_vm_admin_user: "{{ azure_vm_admin_user | default('azureuser') }}"
+    azure_vm_admin_password: "{{ azure_vm_admin_password | mandatory }}"
+    azure_vnet_name: "{{ azure_vnet_name | default('demo-multicloud-vnet') }}"
+    azure_vnet_cidr: "{{ azure_vnet_cidr | default('10.0.0.0/16') }}"
+    azure_subnet_name: "{{ azure_subnet_name | default('demo-multicloud-subnet') }}"
+    azure_subnet_cidr: "{{ azure_subnet_cidr | default('10.0.1.0/24') }}"
+    azure_nsg_name: "{{ azure_nsg_name | default('demo-multicloud-nsg') }}"
+    azure_public_ip_name: "{{ azure_public_ip_name | default(target_hostname + '-pip') }}"
+    azure_nic_name: "{{ azure_nic_name | default(target_hostname + '-nic') }}"
+    # RHEL 9 by default; override via extra vars or demo_variables.yml.
+    azure_vm_image: "{{ azure_vm_image | default({'publisher': 'RedHat', 'offer': 'RHEL', 'sku': '9_4', 'version': 'latest'}) }}"
+    demo_tag: multicloud-snapshots
+
+  tasks:
+    - name: Ensure Azure resource group exists
+      azure.azcollection.azure_rm_resourcegroup:
+        name: "{{ azure_resource_group }}"
+        location: "{{ azure_location }}"
+        tags:
+          Demo: "{{ demo_tag }}"
+      tags:
+        - azure
+        - provision
+        - network
+
+    - name: Create virtual network for the demo environment
+      azure.azcollection.azure_rm_virtualnetwork:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ azure_vnet_name }}"
+        address_prefixes_cidr:
+          - "{{ azure_vnet_cidr }}"
+        tags:
+          Demo: "{{ demo_tag }}"
+      tags:
+        - azure
+        - provision
+        - network
+
+    - name: Create subnet within the demo virtual network
+      azure.azcollection.azure_rm_subnet:
+        resource_group: "{{ azure_resource_group }}"
+        virtual_network_name: "{{ azure_vnet_name }}"
+        name: "{{ azure_subnet_name }}"
+        address_prefix_cidr: "{{ azure_subnet_cidr }}"
+      tags:
+        - azure
+        - provision
+        - network
+
+    # Allow SSH for management; tighten rules for production use.
+    - name: Create network security group with SSH access
+      azure.azcollection.azure_rm_securitygroup:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ azure_nsg_name }}"
+        rules:
+          - name: AllowSSH
+            protocol: Tcp
+            destination_port_range: 22
+            access: Allow
+            priority: 1000
+            direction: Inbound
+        tags:
+          Demo: "{{ demo_tag }}"
+      tags:
+        - azure
+        - provision
+        - network
+
+    - name: Create public IP address for the demo VM
+      azure.azcollection.azure_rm_publicipaddress:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ azure_public_ip_name }}"
+        allocation_method: Static
+        sku: Standard
+        tags:
+          Demo: "{{ demo_tag }}"
+      register: azure_pip_result
+      tags:
+        - azure
+        - provision
+        - network
+
+    - name: Create network interface and attach to subnet and NSG
+      azure.azcollection.azure_rm_networkinterface:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ azure_nic_name }}"
+        virtual_network: "{{ azure_vnet_name }}"
+        subnet_name: "{{ azure_subnet_name }}"
+        security_group: "{{ azure_nsg_name }}"
+        ip_configurations:
+          - name: default
+            public_ip_address_name: "{{ azure_public_ip_name }}"
+            primary: true
+        tags:
+          Demo: "{{ demo_tag }}"
+      tags:
+        - azure
+        - provision
+        - network
+
+    - name: Provision the Azure demo VM with managed OS disk
+      azure.azcollection.azure_rm_virtualmachine:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ target_hostname }}"
+        vm_size: "{{ azure_vm_size }}"
+        admin_username: "{{ azure_vm_admin_user }}"
+        admin_password: "{{ azure_vm_admin_password }}"
+        network_interfaces:
+          - "{{ azure_nic_name }}"
+        image:
+          publisher: "{{ azure_vm_image.publisher }}"
+          offer: "{{ azure_vm_image.offer }}"
+          sku: "{{ azure_vm_image.sku }}"
+          version: "{{ azure_vm_image.version }}"
+        os_disk_size_gb: 64
+        managed_disk_type: Standard_LRS
+        tags:
+          Demo: "{{ demo_tag }}"
+          Hostname: "{{ target_hostname }}"
+      register: azure_vm_result
+      tags:
+        - azure
+        - provision
+        - vm
+
+    - name: Publish provisioned VM details for downstream workflow nodes
+      ansible.builtin.set_stats:
+        data:
+          azure_vm_id: "{{ azure_vm_result.ansible_facts.azure_vm.id }}"
+          azure_vm_public_ip: "{{ azure_pip_result.state.ip_address }}"
+          azure_vm_provisioned: true
+      tags:
+        - azure
+        - provision
+
+    - name: Display Azure VM provisioning summary
+      ansible.builtin.debug:
+        msg: >-
+          Azure VM '{{ target_hostname }}' provisioned in resource group
+          '{{ azure_resource_group }}' ({{ azure_location }}).
+          Public IP: {{ azure_pip_result.state.ip_address }}.
+      tags:
+        - azure
+        - provision

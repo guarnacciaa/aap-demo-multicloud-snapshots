@@ -1,0 +1,110 @@
+# Description: Destroy the Azure demo VM and all associated networking resources.
+# Removes resources in reverse dependency order: VM -> NIC -> public IP -> NSG ->
+# subnet -> VNet. The resource group is optionally deleted if
+# azure_delete_resource_group=true (defaults to false to protect shared groups).
+# Counterpart: provision_azure_vm.yml (creates everything torn down here).
+---
+- name: Deprovision Azure demo VM and networking resources
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - azure.azcollection
+    - ansible.builtin
+
+  vars:
+    target_hostname: "{{ azure_vm_hostname | mandatory }}"
+    azure_resource_group: "{{ azure_resource_group | mandatory }}"
+    azure_vnet_name: "{{ azure_vnet_name | default('demo-multicloud-vnet') }}"
+    azure_subnet_name: "{{ azure_subnet_name | default('demo-multicloud-subnet') }}"
+    azure_nsg_name: "{{ azure_nsg_name | default('demo-multicloud-nsg') }}"
+    azure_public_ip_name: "{{ azure_public_ip_name | default(target_hostname + '-pip') }}"
+    azure_nic_name: "{{ azure_nic_name | default(target_hostname + '-nic') }}"
+    azure_delete_resource_group: "{{ azure_delete_resource_group | default(false) | bool }}"
+
+  tasks:
+    # VM must be removed before its NIC and disks can be released.
+    - name: Delete the Azure demo VM and its managed OS disk
+      azure.azcollection.azure_rm_virtualmachine:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ target_hostname }}"
+        remove_on_absent:
+          - all_autocreated
+        state: absent
+      tags:
+        - azure
+        - deprovision
+        - vm
+
+    - name: Delete the network interface
+      azure.azcollection.azure_rm_networkinterface:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ azure_nic_name }}"
+        state: absent
+      tags:
+        - azure
+        - deprovision
+        - network
+
+    - name: Delete the public IP address
+      azure.azcollection.azure_rm_publicipaddress:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ azure_public_ip_name }}"
+        state: absent
+      tags:
+        - azure
+        - deprovision
+        - network
+
+    - name: Delete the network security group
+      azure.azcollection.azure_rm_securitygroup:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ azure_nsg_name }}"
+        state: absent
+      tags:
+        - azure
+        - deprovision
+        - network
+
+    - name: Delete the demo subnet
+      azure.azcollection.azure_rm_subnet:
+        resource_group: "{{ azure_resource_group }}"
+        virtual_network_name: "{{ azure_vnet_name }}"
+        name: "{{ azure_subnet_name }}"
+        state: absent
+      tags:
+        - azure
+        - deprovision
+        - network
+
+    - name: Delete the demo virtual network
+      azure.azcollection.azure_rm_virtualnetwork:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ azure_vnet_name }}"
+        state: absent
+      tags:
+        - azure
+        - deprovision
+        - network
+
+    # Deleting the resource group removes everything inside it. Only enabled
+    # when the group was created exclusively for this demo.
+    - name: Delete the resource group (when explicitly requested)
+      azure.azcollection.azure_rm_resourcegroup:
+        name: "{{ azure_resource_group }}"
+        state: absent
+        force_delete_nonempty: true
+      when: azure_delete_resource_group | bool
+      tags:
+        - azure
+        - deprovision
+        - network
+
+    - name: Display Azure deprovision summary
+      ansible.builtin.debug:
+        msg: >-
+          Azure VM '{{ target_hostname }}' and associated networking resources
+          removed from resource group '{{ azure_resource_group }}'.
+          {{ 'Resource group also deleted.' if (azure_delete_resource_group | bool) else 'Resource group preserved.' }}
+      tags:
+        - azure
+        - deprovision

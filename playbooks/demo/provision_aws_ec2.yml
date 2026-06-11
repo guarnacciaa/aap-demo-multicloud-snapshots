@@ -1,0 +1,176 @@
+# Description: Provision a demo AWS EC2 instance with all required networking.
+# Creates a VPC, subnet, internet gateway, route table, security group, and
+# EC2 instance from scratch. Run before snapshot playbooks.
+# Counterpart: deprovision_aws_ec2.yml (destroys all resources created here).
+---
+- name: Provision AWS demo EC2 instance and networking for multicloud snapshots
+  hosts: localhost
+  gather_facts: true
+  collections:
+    - amazon.aws
+    - ansible.builtin
+
+  vars:
+    target_hostname: "{{ aws_ec2_hostname | mandatory }}"
+    aws_region: "{{ aws_region | default('us-east-1') }}"
+    aws_instance_type: "{{ aws_instance_type | default('t3.small') }}"
+    aws_ami_id: "{{ aws_ami_id | mandatory }}"
+    aws_key_pair_name: "{{ aws_key_pair_name | default('demo-multicloud-keypair') }}"
+    aws_vpc_cidr: "{{ aws_vpc_cidr | default('10.1.0.0/16') }}"
+    aws_subnet_cidr: "{{ aws_subnet_cidr | default('10.1.1.0/24') }}"
+    aws_vpc_name: "{{ aws_vpc_name | default('demo-multicloud-vpc') }}"
+    aws_subnet_name: "{{ aws_subnet_name | default('demo-multicloud-subnet') }}"
+    aws_sg_name: "{{ aws_sg_name | default('demo-multicloud-sg') }}"
+    demo_tag: multicloud-snapshots
+
+  tasks:
+    - name: Create VPC for the demo environment
+      amazon.aws.ec2_vpc_net:
+        name: "{{ aws_vpc_name }}"
+        cidr_block: "{{ aws_vpc_cidr }}"
+        region: "{{ aws_region }}"
+        tags:
+          Demo: "{{ demo_tag }}"
+        state: present
+      register: aws_vpc_result
+      tags:
+        - aws
+        - provision
+        - network
+
+    - name: Create subnet within the demo VPC
+      amazon.aws.ec2_vpc_subnet:
+        vpc_id: "{{ aws_vpc_result.vpc.id }}"
+        cidr: "{{ aws_subnet_cidr }}"
+        region: "{{ aws_region }}"
+        map_public: true
+        tags:
+          Name: "{{ aws_subnet_name }}"
+          Demo: "{{ demo_tag }}"
+        state: present
+      register: aws_subnet_result
+      tags:
+        - aws
+        - provision
+        - network
+
+    - name: Create internet gateway for outbound and SSH access
+      amazon.aws.ec2_vpc_igw:
+        vpc_id: "{{ aws_vpc_result.vpc.id }}"
+        region: "{{ aws_region }}"
+        tags:
+          Name: "{{ aws_vpc_name }}-igw"
+          Demo: "{{ demo_tag }}"
+        state: present
+      register: aws_igw_result
+      tags:
+        - aws
+        - provision
+        - network
+
+    # Route all non-local traffic through the IGW so the instance can reach
+    # the internet and be reachable via its public IP.
+    - name: Create route table with default route through the internet gateway
+      amazon.aws.ec2_vpc_route_table:
+        vpc_id: "{{ aws_vpc_result.vpc.id }}"
+        region: "{{ aws_region }}"
+        subnets:
+          - "{{ aws_subnet_result.subnet.id }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ aws_igw_result.gateway_id }}"
+        tags:
+          Name: "{{ aws_vpc_name }}-rt"
+          Demo: "{{ demo_tag }}"
+        state: present
+      tags:
+        - aws
+        - provision
+        - network
+
+    # Allow SSH for management; tighten the source CIDR for production use.
+    - name: Create security group with SSH access
+      amazon.aws.ec2_security_group:
+        name: "{{ aws_sg_name }}"
+        description: Security group for multicloud snapshots demo EC2 instance
+        vpc_id: "{{ aws_vpc_result.vpc.id }}"
+        region: "{{ aws_region }}"
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 0.0.0.0/0
+        tags:
+          Demo: "{{ demo_tag }}"
+        state: present
+      register: aws_sg_result
+      tags:
+        - aws
+        - provision
+        - network
+
+    # Key pair is required for EC2 SSH access. The user must supply the public
+    # key material or use an existing key pair name already present in AWS.
+    - name: Ensure EC2 key pair exists (import user public key if provided)
+      amazon.aws.ec2_key:
+        name: "{{ aws_key_pair_name }}"
+        region: "{{ aws_region }}"
+        key_material: "{{ aws_public_key_material | default(omit) }}"
+        tags:
+          Demo: "{{ demo_tag }}"
+        state: present
+      when: aws_key_pair_name is defined
+      tags:
+        - aws
+        - provision
+        - network
+
+    - name: Launch EC2 instance for the demo
+      amazon.aws.ec2_instance:
+        name: "{{ target_hostname }}"
+        instance_type: "{{ aws_instance_type }}"
+        image_id: "{{ aws_ami_id }}"
+        key_name: "{{ aws_key_pair_name }}"
+        region: "{{ aws_region }}"
+        vpc_subnet_id: "{{ aws_subnet_result.subnet.id }}"
+        security_group: "{{ aws_sg_result.group_id }}"
+        network:
+          assign_public_ip: true
+        volumes:
+          - device_name: /dev/sda1
+            ebs:
+              volume_size: 20
+              volume_type: gp3
+              delete_on_termination: true
+        tags:
+          Demo: "{{ demo_tag }}"
+          Hostname: "{{ target_hostname }}"
+        wait: true
+        wait_timeout: 300
+        state: running
+      register: aws_ec2_result
+      tags:
+        - aws
+        - provision
+        - vm
+
+    - name: Publish provisioned EC2 details for downstream workflow nodes
+      ansible.builtin.set_stats:
+        data:
+          aws_ec2_instance_id: "{{ aws_ec2_result.instances[0].instance_id }}"
+          aws_ec2_public_ip: "{{ aws_ec2_result.instances[0].public_ip_address | default('N/A') }}"
+          aws_ec2_provisioned: true
+      tags:
+        - aws
+        - provision
+
+    - name: Display EC2 provisioning summary
+      ansible.builtin.debug:
+        msg: >-
+          EC2 instance '{{ target_hostname }}'
+          ({{ aws_ec2_result.instances[0].instance_id }}) provisioned in
+          {{ aws_region }}. Public IP:
+          {{ aws_ec2_result.instances[0].public_ip_address | default('N/A') }}.
+      tags:
+        - aws
+        - provision
