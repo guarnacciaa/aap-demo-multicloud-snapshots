@@ -11,17 +11,6 @@
   vars_files:
     - ../vault.yml
     - ../group_vars/all/demo_variables.yml
-  pre_tasks:
-    - name: Debug resolved AAP connection variables
-      ansible.builtin.debug:
-        msg:
-          gateway_hostname: "{{ gateway_hostname }}"
-          gateway_username: "{{ gateway_username }}"
-          gateway_password_length: "{{ gateway_password | length }}"
-          gateway_password_value: "{{ gateway_password }}"
-      tags:
-        - debug
-
   roles:
     # NOTE: infra.aap_configuration is validated content (not certified).
     - role: infra.aap_configuration.dispatch
