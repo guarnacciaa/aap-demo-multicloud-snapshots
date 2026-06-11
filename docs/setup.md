@@ -83,30 +83,40 @@ If your platform EE lacks cloud SDKs, build a custom image from `context/executi
    podman pull registry.redhat.io/ansible-automation-platform-26/ee-minimal-rhel9:latest
    ```
 
-2. Copy and configure `ansible.cfg` at the artifact root (Automation Hub token required for certified collections):
+2. Copy and configure `ansible.cfg` at the **artifact root** (required; the build copies `../ansible.cfg` into the image build context):
 
    ```bash
+   cd ~/aap-demo-multicloud-snapshots
    cp ansible.cfg.example ansible.cfg
-   # Edit ansible.cfg and set your Automation Hub token.
+   # Replace <token> with your Automation Hub offline token in BOTH
+   # [galaxy_server.automation_hub_certified] and
+   # [galaxy_server.automation_hub_validated].
    ```
 
-3. Export the Hub token for the build (or rely on the token in `ansible.cfg`):
+   Verify the token works before building the EE:
 
    ```bash
-   export ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_TOKEN="$(<your-hub-token>)"
+   ansible-galaxy collection install -r collections/requirements.yml -p collections
    ```
+
+   If this command returns `HTTP Code: 401`, fix `ansible.cfg` before running `ansible-builder`.
 
 **Build and register**
 
 ```bash
 cd context
-ansible-builder build \
-  -f execution-environment.yml \
-  -t ee-multicloud-snapshots:latest \
-  --build-arg ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_TOKEN
+ansible-builder build -f execution-environment.yml -t ee-multicloud-snapshots:latest
 ```
 
 Push the image to your registry and update `group_vars/all/execution_environments.yml` with the full image reference (registry, name, and tag).
+
+**Troubleshooting**
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `HTTP Code: 401, Message: Unauthorized` during `ansible-galaxy collection install` in the build | Missing or placeholder token in `../ansible.cfg`, or `ansible.cfg` not created at artifact root | Create `ansible.cfg` from the example and set a valid Hub token; confirm with the local `ansible-galaxy` command above |
+| `explicit_requirement_infra.aap_configuration ... 401` | Old `context/requirements.yml` with per-collection `source:` URLs or validated collections in the EE | Use the current `context/requirements.yml` (certified cloud collections only; no `source:` keys) |
+| Warning about `quay.io/ansible/ansible-runner` | Missing `images.base_image` in an old definition file | Use the current `context/execution-environment.yml` with `ee-minimal-rhel9` |
 
 ## Apply CasC
 

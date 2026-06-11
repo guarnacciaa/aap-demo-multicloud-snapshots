@@ -1,10 +1,8 @@
 ---
-# Certified collections installed into the custom EE at build time.
-# Requires a valid Automation Hub token (see docs/setup.md).
+# Certified collections for cloud provisioning and snapshot playbooks.
+# Do not set per-collection source URLs here; ansible-galaxy resolves servers
+# from ../ansible.cfg (automation_hub_certified / automation_hub_validated).
+# CasC (infra.aap_configuration) is installed locally, not in this EE.
 collections:
-  - name: infra.aap_configuration
-    source: https://cloud.redhat.com/api/automation-hub/content/published/
   - name: azure.azcollection
-    source: https://cloud.redhat.com/api/automation-hub/content/published/
   - name: amazon.aws
-    source: https://cloud.redhat.com/api/automation-hub/content/published/

@@ -28,20 +28,15 @@ dependencies:
     - gcc [platform:rpm]
     - python3-devel [platform:rpm]
 
-# Project-root ansible.cfg (with Automation Hub token) is copied into the build
-# context so ansible-galaxy can install certified collections during the build.
+# Project-root ansible.cfg (Automation Hub token) is required before build.
 additional_build_files:
   - src: ../ansible.cfg
     dest: configs
 
 additional_build_steps:
   prepend_galaxy:
+    # Use the same Hub server_list and token as local collection installs.
     - COPY _build/configs/ansible.cfg /etc/ansible/ansible.cfg
-    - ENV ANSIBLE_GALAXY_SERVER_LIST=automation_hub
-    - ENV ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_URL=https://console.redhat.com/api/automation-hub/content/published/
-    - ENV ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_AUTH_URL=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
-    # Pass the Hub token from the build host; also set in ../ansible.cfg when present.
-    - ARG ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_TOKEN
   append_final:
     # Do not ship ansible.cfg in the final image (may contain tokens).
     - RUN rm -f /etc/ansible/ansible.cfg
