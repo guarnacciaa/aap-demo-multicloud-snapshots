@@ -75,7 +75,7 @@
       tags:
         - templates
 
-    # --- 3. Inventories (hosts/groups are removed with their inventory) ---
+    # --- 3. Inventories (child inventories before parent) ---
     - name: Remove inventories
       ansible.controller.inventory:
         name: "{{ item }}"
@@ -83,9 +83,9 @@
         state: absent
         <<: *controller_auth
       loop:
-        - "{{ demo_inventory_name }}"
         - Azure-Resources
         - AWS-Resources
+        - "{{ demo_inventory_name }}"
       ignore_errors: true
       tags:
         - inventories
@@ -114,6 +114,8 @@
           type: Microsoft Azure Resource Manager
         - name: "{{ aws_credential_name }}"
           type: Amazon Web Services
+        - name: "{{ hub_registry_credential_name }}"
+          type: Container Registry
       ignore_errors: true
       tags:
         - credentials

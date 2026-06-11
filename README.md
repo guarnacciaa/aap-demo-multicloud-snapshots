@@ -43,11 +43,21 @@ cp group_vars/all/demo_variables.yml.example group_vars/all/demo_variables.yml
 cp vault.yml.example vault.yml && ansible-vault encrypt vault.yml
 ```
 
-Edit `group_vars/all/demo_variables.yml` with your AAP URL, Azure/AWS identifiers, VM settings, and networking configuration. Edit `vault.yml` with secrets.
+Edit `group_vars/all/demo_variables.yml` with your AAP URL, Git repository URL (`demo_project_scm_url`), Azure/AWS identifiers, VM settings, and networking configuration. Edit `vault.yml` with secrets.
 
 ```bash
 ansible-playbook playbooks/aap_config.yml --vault-id @prompt
 ```
+
+## Reset AAP configuration
+
+To remove all CasC objects created by this demo (organization, project, templates, inventories, credentials, execution environment):
+
+```bash
+ansible-playbook playbooks/aap_cleanup.yml -e demo_cleanup_confirm=true --vault-id @prompt
+```
+
+Re-apply CasC with `aap_config.yml` when you want to deploy again.
 
 ## Scenario overview
 
@@ -169,3 +179,4 @@ CasC in `group_vars/all/inventories.yml` defines the hierarchy. Re-running `play
 | Cross-cloud API timeout | AAP cannot reach AWS from Azure | Check network connectivity and security group rules |
 | `image not known` on `podman push` | Local image not tagged for Hub registry | Tag first: `podman tag localhost/ee-multicloud-snapshots:latest <aap_host>/ee-multicloud-snapshots:latest` |
 | TLS error on `podman login` to Hub | Self-signed certificate on growth deployment | Use `--tls-verify=false` on login and push; see [docs/setup.md](docs/setup.md) |
+| TLS error when Controller pulls EE | Missing Container Registry credential or Verify SSL enabled | Re-run CasC; attach `PAH Container Registry` credential with Verify SSL disabled |

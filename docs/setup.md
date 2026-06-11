@@ -56,6 +56,7 @@ ansible-vault encrypt vault.yml
 Edit `group_vars/all/demo_variables.yml` with:
 
 - AAP URL and admin credentials
+- Git repository URL (`demo_project_scm_url`; see commented GitHub, Gitea, and GitLab options in the example file)
 - Azure subscription, tenant, client, resource group, location, VM size, and networking names
 - AWS region, instance type, AMI ID, key pair name, and networking names
 
@@ -168,13 +169,17 @@ Set `demo_execution_environment_image` in `group_vars/all/demo_variables.yml` to
 demo_execution_environment_image: <aap_host>/ee-multicloud-snapshots:latest
 ```
 
+CasC also creates a **Container Registry** credential (`PAH Container Registry`) with **Verify SSL** disabled and attaches it to the execution environment so the Controller can pull the image from a self-signed Hub registry.
+
 Re-apply CasC:
 
 ```bash
 ansible-playbook playbooks/aap_config.yml --vault-id @prompt
 ```
 
-If job templates fail to pull the image, create a **Container Registry** credential in AAP (**Automation Execution** > **Infrastructure** > **Credentials**) pointing at `<aap_host>`, with **Verify SSL** disabled when using a self-signed certificate. Attach that credential to the execution environment object.
+Confirm in AAP: **Automation Execution** > **Infrastructure** > **Execution Environments** > `ee-multicloud-snapshots` shows the pushed image and the **PAH Container Registry** credential.
+
+If job templates fail to pull the image, confirm **Verify SSL** is disabled on that credential and that `hub_registry_host` matches the registry host in `demo_execution_environment_image` (no `https://` prefix).
 
 **Troubleshooting**
 
@@ -190,6 +195,7 @@ If job templates fail to pull the image, create a **Container Registry** credent
 | `401 Unauthorized` on `podman login` or push | Wrong AAP credentials or insufficient Hub permissions | Use a user with permission to create containers on Hub (for example the gateway admin); authenticate through the Platform Gateway |
 | Connection refused on push | Wrong registry host or port | Confirm `<aap_host>` matches `aap_hostname`; retry with port `8444` as shown above |
 | `couldn't resolve module/action 'azure.azcollection.*'` at job runtime | Job uses the placeholder EE (`quay.io/ansible/ansible-runner`) instead of the custom image | Set `demo_execution_environment_image` in `demo_variables.yml`, re-run `aap_config.yml`, and confirm the job template points to `ee-multicloud-snapshots` |
+| `x509: certificate signed by unknown authority` when Controller pulls the EE | Hub registry uses a self-signed certificate and the EE has no registry credential with SSL verification disabled | Re-run CasC after setting `demo_execution_environment_image`; confirm `PAH Container Registry` credential exists with **Verify SSL** off and is linked to the EE |
 
 ## Apply CasC
 
@@ -198,6 +204,16 @@ ansible-playbook playbooks/aap_config.yml --vault-id @prompt
 ```
 
 This creates or updates all AAP objects: organization, project, inventories, credentials, job templates (provisioning, snapshot, and teardown), and all three workflow templates.
+
+## Reset AAP configuration
+
+Remove all CasC objects created by this demo. Confirmation is required:
+
+```bash
+ansible-playbook playbooks/aap_cleanup.yml -e demo_cleanup_confirm=true --vault-id @prompt
+```
+
+This deletes the organization, project, templates, inventories, credentials, and execution environment defined by this artifact. Re-run `aap_config.yml` to deploy again.
 
 ## Multicloud inventory (UC4)
 

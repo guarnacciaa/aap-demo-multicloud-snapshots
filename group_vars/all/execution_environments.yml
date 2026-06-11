@@ -4,6 +4,7 @@ controller_execution_environments:
     organization: "{{ demo_organization_name }}"
     image: "{{ demo_execution_environment_image }}"
     pull: missing
+    credential: "{{ hub_registry_credential_name }}"
     description: >-
       Custom EE with azure.azcollection and amazon.aws. Build from
       context/execution-environment.yml and push to Private Automation Hub

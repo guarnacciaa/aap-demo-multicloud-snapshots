@@ -11,6 +11,21 @@
   vars_files:
     - ../vault.yml
     - ../group_vars/all/demo_variables.yml
+  pre_tasks:
+    - name: Validate required variables before CasC apply
+      ansible.builtin.assert:
+        that:
+          - aap_hostname is defined
+          - aap_hostname != "CHANGE_ME"
+          - demo_project_scm_url is defined
+          - demo_project_scm_url != "CHANGE_ME_GIT_REPO_URL"
+          - aap_username is defined
+          - aap_password is defined
+        fail_msg: >-
+          Configure aap_hostname and demo_project_scm_url in demo_variables.yml
+          and controller credentials in vault.yml before running CasC.
+      tags:
+        - always
   roles:
     # NOTE: infra.aap_configuration is validated content (not certified).
     - role: infra.aap_configuration.dispatch
@@ -19,5 +34,8 @@
         - organizations
         - credentials
         - inventories
+        - projects
+        - execution_environments
+        - labels
         - job_templates
         - workflow_job_templates

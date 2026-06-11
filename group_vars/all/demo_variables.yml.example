@@ -28,7 +28,27 @@ demo_execution_environment_name: ee-multicloud-snapshots
 # Must match the tag used in podman push (see docs/setup.md).
 demo_execution_environment_image: CHANGE_ME/ee-multicloud-snapshots:latest
 
-demo_project_scm_url: https://github.com/YOUR_ORG/aap-demo-multicloud-snapshots.git
+# Private Automation Hub container registry (for Controller EE image pulls).
+# Use the Gateway host or IP without a URL scheme; must match demo_execution_environment_image.
+hub_registry_credential_name: PAH Container Registry
+hub_registry_host: "{{ aap_hostname | regex_replace('^https?://', '') | regex_replace('/$', '') }}"
+
+# ============================================================================
+# Git repository configuration
+# ============================================================================
+# Choose ONE of the following options based on your Git hosting platform:
+#
+# OPTION A: GitHub
+#   demo_project_scm_url: https://github.com/YOUR_USERNAME/aap-demo-multicloud-snapshots.git
+#
+# OPTION B: Gitea (self-hosted)
+#   demo_project_scm_url: https://your-gitea.example.com/YOUR_USERNAME/aap-demo-multicloud-snapshots.git
+#
+# OPTION C: GitLab
+#   demo_project_scm_url: https://gitlab.com/YOUR_USERNAME/aap-demo-multicloud-snapshots.git
+# ============================================================================
+
+demo_project_scm_url: CHANGE_ME_GIT_REPO_URL
 demo_project_scm_branch: main
 
 # ============================================================================
