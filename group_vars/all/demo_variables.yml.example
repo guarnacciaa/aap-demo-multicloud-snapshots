@@ -18,6 +18,10 @@ aap_username: "{{ controller_username }}"
 aap_password: "{{ controller_password }}"
 aap_validate_certs: false
 
+# Controller REST API path prefix when calling through Platform Gateway (AAP 2.5+).
+# Do not use legacy /api/v2/ on the gateway hostname.
+aap_controller_api_prefix: /api/controller/v2
+
 demo_organization_name: Multicloud Demo
 demo_organization_description: Multicloud snapshot and retention PoC
 demo_project_name: Multicloud Snapshots Demo
