@@ -7,11 +7,19 @@
 
 demo_no_log: false
 
-# --- AAP connection (dispatch role expects controller_* names) ---
-controller_hostname: CHANGE_ME
-controller_username: admin
-controller_password: "{{ vault_controller_password }}"
-controller_validate_certs: false
+# --- AAP connection ---
+# The dispatch role uses gateway_* for organizations (processed first via the
+# platform gateway) and controller_* for all other objects. In AAP 2.5+ both
+# typically point to the same URL.
+gateway_hostname: CHANGE_ME
+gateway_username: admin
+gateway_password: "{{ vault_controller_password }}"
+gateway_validate_certs: false
+
+controller_hostname: "{{ gateway_hostname }}"
+controller_username: "{{ gateway_username }}"
+controller_password: "{{ gateway_password }}"
+controller_validate_certs: "{{ gateway_validate_certs }}"
 
 demo_organization_name: Multicloud Demo
 demo_organization_description: Multicloud snapshot and retention PoC
