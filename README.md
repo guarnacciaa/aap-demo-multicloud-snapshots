@@ -167,3 +167,5 @@ CasC in `group_vars/all/inventories.yml` defines the hierarchy. Re-running `play
 | Snapshot playbook finds 0 VMs | Infrastructure not provisioned | Run the setup workflow first |
 | Deprovision skips network resources | VPC/VNet already deleted | Safe to ignore; teardown is idempotent |
 | Cross-cloud API timeout | AAP cannot reach AWS from Azure | Check network connectivity and security group rules |
+| `image not known` on `podman push` | Local image not tagged for Hub registry | Tag first: `podman tag localhost/ee-multicloud-snapshots:latest <aap_host>/ee-multicloud-snapshots:latest` |
+| TLS error on `podman login` to Hub | Self-signed certificate on growth deployment | Use `--tls-verify=false` on login and push; see [docs/setup.md](docs/setup.md) |

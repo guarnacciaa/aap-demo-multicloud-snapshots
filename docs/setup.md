@@ -101,7 +101,7 @@ If your platform EE lacks cloud SDKs, build a custom image from `context/executi
 
    If this command returns `HTTP Code: 401`, fix `ansible.cfg` before running `ansible-builder`.
 
-**Build and register**
+**Build**
 
 Run the build from the artifact root so paths to `ansible.cfg` and the build context resolve correctly. Remove any previous build output first:
 
@@ -115,7 +115,66 @@ ansible-builder build \
   context
 ```
 
-Push the image to your registry and update `group_vars/all/execution_environments.yml` with the full image reference (registry, name, and tag).
+After a successful build, the image is tagged locally as `localhost/ee-multicloud-snapshots:latest`. Confirm with `podman images`.
+
+**Push to Private Automation Hub**
+
+On a **container growth** (all-in-one) deployment, Private Automation Hub runs on the same host as the other AAP components. Push the built image to the Hub container registry using the Platform Gateway hostname or IP (the same host you use for `aap_hostname` in `demo_variables.yml`, without the `https://` prefix).
+
+Replace `<aap_host>` below with that value (for example `192.168.178.225` or `aap.example.org`).
+
+1. Tag the local image for the Hub registry (required before push):
+
+   ```bash
+   podman tag localhost/ee-multicloud-snapshots:latest \
+     <aap_host>/ee-multicloud-snapshots:latest
+   ```
+
+2. Log in to the Hub registry with your AAP admin credentials:
+
+   ```bash
+   podman login --tls-verify=false <aap_host>
+   ```
+
+   Growth and lab deployments typically use a self-signed TLS certificate. Without `--tls-verify=false`, login fails with `x509: certificate signed by unknown authority`.
+
+   Let Podman prompt for the password; do not pass it on the command line.
+
+3. Push the tagged image:
+
+   ```bash
+   podman push --tls-verify=false <aap_host>/ee-multicloud-snapshots:latest
+   ```
+
+4. Verify in the AAP UI: **Automation Content** > **Execution Environments**. The image should appear in the container repository list.
+
+   You can also copy the exact pull command from **Pull this image** on the execution environment detail page.
+
+If login or push fails with a connection error, retry using the Hub NGINX port exposed by the containerized installer (default HTTPS port `8444`):
+
+```bash
+podman tag localhost/ee-multicloud-snapshots:latest \
+  <aap_host>:8444/ee-multicloud-snapshots:latest
+
+podman login --tls-verify=false <aap_host>:8444
+podman push --tls-verify=false <aap_host>:8444/ee-multicloud-snapshots:latest
+```
+
+**Register in AAP**
+
+Update `group_vars/all/execution_environments.yml` with the full image reference you pushed (registry host, image name, and tag):
+
+```yaml
+image: <aap_host>/ee-multicloud-snapshots:latest
+```
+
+Re-apply CasC:
+
+```bash
+ansible-playbook playbooks/aap_config.yml --vault-id @prompt
+```
+
+If job templates fail to pull the image, create a **Container Registry** credential in AAP (**Automation Execution** > **Infrastructure** > **Credentials**) pointing at `<aap_host>`, with **Verify SSL** disabled when using a self-signed certificate. Attach that credential to the execution environment object.
 
 **Troubleshooting**
 
@@ -126,6 +185,10 @@ Push the image to your registry and update `group_vars/all/execution_environment
 | Warning about `quay.io/ansible/ansible-runner` | Missing `images.base_image` in an old definition file | Use the current `context/execution-environment.yml` with `ee-minimal-rhel9` |
 | `/usr/bin/python3: No module named pip` in the builder stage | Explicit `python:` / `python3-pip` entries forced a UBI Python stack into the builder | Use the current galaxy-only `context/execution-environment.yml`; collections supply pip deps |
 | `ModuleNotFoundError: No module named 'yaml'` in `introspect.py` | Same root cause: microdnf `python3-pip` in the builder stage conflicts with `ee-minimal-rhel9` | Remove custom `prepend_builder` / system pip packages; rebuild from a clean `context/_build` directory |
+| `image not known` on `podman push` | Image not tagged for the Hub registry hostname | Run `podman tag localhost/ee-multicloud-snapshots:latest <aap_host>/ee-multicloud-snapshots:latest` before push |
+| `x509: certificate signed by unknown authority` on `podman login` | Self-signed or internal CA certificate on the Hub registry | Use `podman login --tls-verify=false` and `podman push --tls-verify=false`; disable **Verify SSL** on the Container Registry credential in AAP |
+| `401 Unauthorized` on `podman login` or push | Wrong AAP credentials or insufficient Hub permissions | Use a user with permission to create containers on Hub (for example the gateway admin); authenticate through the Platform Gateway |
+| Connection refused on push | Wrong registry host or port | Confirm `<aap_host>` matches `aap_hostname`; retry with port `8444` as shown above |
 
 ## Apply CasC
 

@@ -4,5 +4,6 @@ controller_execution_environments:
     organization: "{{ demo_organization_name }}"
     image: quay.io/ansible/ansible-runner:latest
     description: >-
-      Custom EE for multicloud snapshots. Replace with your built image from
-      context/execution-environment.yml after pushing to your registry.
+      Custom EE for multicloud snapshots. After building and pushing to Private
+      Automation Hub, set image to <aap_host>/ee-multicloud-snapshots:latest
+      (see docs/setup.md).
