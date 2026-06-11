@@ -1,0 +1,97 @@
+# Description: Verify Azure and AWS snapshots exist and reached a completed state.
+# Uses naming prefix and demo tags rather than workflow set_stats (works standalone too).
+---
+- name: Verify multicloud snapshots completed successfully
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - azure.azcollection
+    - amazon.aws
+    - ansible.builtin
+
+  vars:
+    snapshot_name_prefix: "{{ snapshot_name_prefix | default('poc-snapshot') }}"
+    azure_resource_group: "{{ azure_resource_group | mandatory }}"
+    aws_region: "{{ aws_region | default('us-east-1') }}"
+
+  tasks:
+    - name: List Azure snapshots tagged for this demo
+      azure.azcollection.azure_rm_snapshot_info:
+        resource_group: "{{ azure_resource_group }}"
+      register: azure_snapshots
+      tags:
+        - azure
+        - verify
+
+    - name: Filter Azure snapshots created by this demo for the Azure VM hostname
+      ansible.builtin.set_fact:
+        azure_demo_snapshots: >-
+          {{
+            azure_snapshots.snapshots | default([])
+            | selectattr('tags.Demo', 'defined')
+            | selectattr('tags.Demo', 'equalto', 'multicloud-snapshots')
+            | selectattr('name', 'search', snapshot_name_prefix)
+            | list
+          }}
+      tags:
+        - azure
+        - verify
+
+    - name: Assert at least one Azure demo snapshot exists
+      ansible.builtin.assert:
+        that:
+          - azure_demo_snapshots | length > 0
+        fail_msg: No Azure snapshots found with demo tags and prefix {{ snapshot_name_prefix }}.
+      tags:
+        - azure
+        - verify
+
+    - name: List AWS snapshots tagged for this demo
+      amazon.aws.ec2_snapshot_info:
+        region: "{{ aws_region }}"
+        filters:
+          tag:Demo: multicloud-snapshots
+      register: aws_snapshots
+      tags:
+        - aws
+        - verify
+
+    - name: Filter AWS snapshots by naming prefix
+      ansible.builtin.set_fact:
+        aws_demo_snapshots: >-
+          {{
+            aws_snapshots.snapshots | default([])
+            | selectattr('tags.Name', 'defined')
+            | selectattr('tags.Name', 'search', snapshot_name_prefix)
+            | list
+          }}
+      tags:
+        - aws
+        - verify
+
+    - name: Assert at least one AWS demo snapshot exists
+      ansible.builtin.assert:
+        that:
+          - aws_demo_snapshots | length > 0
+        fail_msg: No AWS snapshots found with demo tags and prefix {{ snapshot_name_prefix }}.
+      tags:
+        - aws
+        - verify
+
+    - name: Assert AWS snapshots reached completed state
+      ansible.builtin.assert:
+        that:
+          - item.state == 'completed'
+        fail_msg: "AWS snapshot {{ item.snapshot_id }} is in state {{ item.state }}, expected completed."
+      loop: "{{ aws_demo_snapshots }}"
+      tags:
+        - aws
+        - verify
+
+    - name: Report verification summary
+      ansible.builtin.debug:
+        msg: >-
+          Verified {{ azure_demo_snapshots | length }} Azure and
+          {{ aws_demo_snapshots | length }} AWS snapshot(s).
+      tags:
+        - verify

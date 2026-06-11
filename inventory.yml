@@ -1,0 +1,8 @@
+---
+# Local inventory for CasC apply/cleanup and optional static multicloud host metadata.
+# AAP-managed inventories are defined in group_vars/all/inventories.yml (CasC).
+all:
+  hosts:
+    localhost:
+      ansible_connection: local
+      ansible_python_interpreter: "{{ ansible_play_python_version }}"

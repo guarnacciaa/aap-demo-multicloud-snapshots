@@ -1,0 +1,82 @@
+# Description: Discover an Azure VM by hostname and snapshot all managed disks.
+# Requires Azure Service Principal credentials injected by AAP or environment.
+---
+- name: Create Azure disk snapshots for a VM identified by hostname
+  hosts: localhost
+  gather_facts: true
+  collections:
+    - azure.azcollection
+    - ansible.builtin
+
+  vars:
+    target_hostname: "{{ target_hostname | mandatory }}"
+    azure_resource_group: "{{ azure_resource_group | mandatory }}"
+    snapshot_name_prefix: "{{ snapshot_name_prefix | default('poc-snapshot') }}"
+
+  tasks:
+    - name: Look up Azure virtual machine by hostname
+      azure.azcollection.azure_rm_virtualmachine_info:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ target_hostname }}"
+      register: azure_vm_info
+      tags:
+        - azure
+        - discover
+
+    - name: Ensure exactly one VM matches the hostname
+      ansible.builtin.assert:
+        that:
+          - azure_vm_info.vms | length == 1
+        fail_msg: >-
+          Expected one VM named {{ target_hostname }} in {{ azure_resource_group }},
+          found {{ azure_vm_info.vms | length }}.
+      tags:
+        - azure
+        - discover
+
+    - name: Build list of managed disk resource IDs attached to the VM
+      ansible.builtin.set_fact:
+        azure_disk_ids: >-
+          {{
+            [azure_vm_info.vms[0].storage_profile.os_disk.managed_disk.id]
+            + (azure_vm_info.vms[0].storage_profile.data_disks | default([])
+               | map(attribute='managed_disk.id') | list)
+          }}
+      tags:
+        - azure
+        - discover
+
+    - name: Create a snapshot for each managed disk
+      azure.azcollection.azure_rm_snapshot:
+        resource_group: "{{ azure_resource_group }}"
+        name: >-
+          {{ snapshot_name_prefix }}-{{ target_hostname }}-{{ item | basename | regex_replace('[^a-zA-Z0-9-]', '-') }}-{{ ansible_date_time.date | regex_replace('-', '') }}
+        location: "{{ azure_vm_info.vms[0].location }}"
+        creation_data:
+          create_option: Copy
+          source_id: "{{ item }}"
+        tags:
+          Demo: multicloud-snapshots
+          SourceHostname: "{{ target_hostname }}"
+          RetentionDays: "{{ snapshot_retention_days | default(30) | string }}"
+      loop: "{{ azure_disk_ids }}"
+      register: azure_snapshot_results
+      tags:
+        - azure
+        - snapshot
+
+    - name: Publish Azure snapshot results for downstream workflow nodes
+      ansible.builtin.set_stats:
+        data:
+          azure_snapshots_created: "{{ azure_snapshot_results.results | map(attribute='state.id') | list }}"
+          azure_snapshot_hostname: "{{ target_hostname }}"
+      tags:
+        - azure
+        - snapshot
+
+    - name: Display created Azure snapshot names
+      ansible.builtin.debug:
+        msg: "Created {{ azure_snapshot_results.results | length }} Azure snapshot(s) for {{ target_hostname }}."
+      tags:
+        - azure
+        - snapshot

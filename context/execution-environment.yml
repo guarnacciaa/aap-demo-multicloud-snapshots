@@ -1,0 +1,24 @@
+---
+# Build a custom EE when the platform default lacks Azure/AWS SDK dependencies.
+# See docs/setup.md for ansible-builder instructions.
+version: 3
+build_arg_defaults:
+  ANSIBLE_GALAXY_CLI_COLLECTION_OPTS: "-v"
+dependencies:
+  galaxy:
+    collections:
+      - name: infra.aap_configuration
+        source: https://cloud.redhat.com/api/automation-hub/
+      - name: azure.azcollection
+        source: https://cloud.redhat.com/api/automation-hub/
+      - name: amazon.aws
+        source: https://cloud.redhat.com/api/automation-hub/
+  python:
+    - boto3
+    - botocore
+    - azure-identity
+    - azure-mgmt-compute
+    - azure-mgmt-resource
+  system:
+    - gcc [platform:rpm]
+    - python3-devel [platform:rpm]

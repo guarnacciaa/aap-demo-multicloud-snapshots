@@ -1,0 +1,33 @@
+# Description: Remove AAP objects created by this demo (destructive).
+# Requires explicit confirmation via demo_cleanup_confirm=true extra var.
+---
+- name: Confirm multicloud snapshots demo cleanup
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - ansible.builtin
+  tasks:
+    - name: Require demo_cleanup_confirm=true before removing AAP objects
+      ansible.builtin.assert:
+        that:
+          - demo_cleanup_confirm | default(false) | bool
+        fail_msg: >-
+          Refusing to run cleanup. Pass -e demo_cleanup_confirm=true to
+          remove demo organizations, projects, templates, and inventories.
+      tags:
+        - always
+
+- name: Remove multicloud snapshots demo configuration from AAP
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - infra.aap_configuration
+    - ansible.builtin
+  vars_files:
+    - ../group_vars/all/demo_variables.yml
+  vars:
+    platform_state: absent
+  roles:
+    - role: infra.aap_configuration.dispatch
+      tags:
+        - all

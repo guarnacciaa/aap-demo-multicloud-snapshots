@@ -1,0 +1,7 @@
+---
+collections:
+  - name: infra.aap_configuration
+  - name: azure.azcollection
+  - name: amazon.aws
+
+roles: []

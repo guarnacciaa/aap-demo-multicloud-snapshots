@@ -1,0 +1,8 @@
+---
+controller_execution_environments:
+  - name: "{{ demo_execution_environment_name }}"
+    organization: "{{ demo_organization_name }}"
+    image: quay.io/ansible/ansible-runner:latest
+    description: >-
+      Custom EE for multicloud snapshots. Replace with your built image from
+      context/execution-environment.yml after pushing to your registry.

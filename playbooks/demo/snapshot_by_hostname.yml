@@ -1,0 +1,14 @@
+# Description: Entry playbook for hostname-driven snapshots across Azure and AWS.
+# Use --tags azure, aws, or both. Intended for workflow steps or ad hoc runs.
+---
+- name: Snapshot Azure VM disks by hostname
+  ansible.builtin.import_playbook: snapshot_azure.yml
+  tags:
+    - azure
+    - snapshot
+
+- name: Snapshot AWS EC2 volumes by hostname
+  ansible.builtin.import_playbook: snapshot_aws.yml
+  tags:
+    - aws
+    - snapshot

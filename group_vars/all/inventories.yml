@@ -1,0 +1,16 @@
+---
+# UC4: parent/child multicloud inventory hierarchy (same naming across PoC artifacts).
+controller_inventories:
+  - name: "{{ demo_inventory_name }}"
+    organization: "{{ demo_organization_name }}"
+    description: Parent inventory for multicloud snapshot operations
+
+  - name: Azure-Resources
+    organization: "{{ demo_organization_name }}"
+    description: Azure VMs and resources for snapshot workflows
+    inventory: "{{ demo_inventory_name }}"
+
+  - name: AWS-Resources
+    organization: "{{ demo_organization_name }}"
+    description: AWS EC2 instances and resources for snapshot workflows
+    inventory: "{{ demo_inventory_name }}"

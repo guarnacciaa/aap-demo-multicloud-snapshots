@@ -1,0 +1,5 @@
+---
+# Organizations are processed by gateway_organizations before controller objects.
+aap_organizations:
+  - name: "{{ demo_organization_name }}"
+    description: "{{ demo_organization_description }}"

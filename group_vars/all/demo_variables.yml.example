@@ -1,0 +1,46 @@
+# ============================================================================
+# DEMO CONFIGURATION VARIABLES (EXAMPLE)
+# ============================================================================
+# Copy to demo_variables.yml and edit for your environment.
+# demo_variables.yml is gitignored so it is not overwritten on git pull.
+# ============================================================================
+
+demo_no_log: false
+
+aap_hostname: CHANGE_ME
+aap_username: "{{ controller_username | default('admin') }}"
+aap_password: "{{ controller_password }}"
+aap_validate_certs: false
+
+demo_organization_name: Multicloud Demo
+demo_organization_description: Multicloud snapshot and retention PoC
+demo_project_name: Multicloud Snapshots Demo
+demo_label_name: multicloud-snapshots
+demo_inventory_name: Demo-Multicloud
+demo_execution_environment_name: ee-multicloud-snapshots
+
+demo_project_scm_url: https://github.com/YOUR_ORG/aap-demo-multicloud-snapshots.git
+demo_project_scm_branch: main
+
+# --- Azure ---
+azure_subscription_id: CHANGE_ME
+azure_tenant_id: CHANGE_ME
+azure_client_id: "{{ vault_azure_client_id | default('CHANGE_ME') }}"
+azure_client_secret: "{{ vault_azure_client_secret }}"
+azure_resource_group: CHANGE_ME
+azure_vm_hostname: azure-demo-vm01
+
+# --- AWS ---
+aws_region: us-east-1
+aws_access_key: "{{ vault_aws_access_key | default('CHANGE_ME') }}"
+aws_secret_key: "{{ vault_aws_secret_key }}"
+aws_ec2_hostname: aws-demo-vm01
+
+# --- Snapshot policy ---
+snapshot_retention_days: 30
+enable_snapshot_cleanup: false
+snapshot_name_prefix: poc-snapshot
+
+# Credential names (must match credentials.yml)
+azure_credential_name: Azure Service Principal
+aws_credential_name: AWS IAM User

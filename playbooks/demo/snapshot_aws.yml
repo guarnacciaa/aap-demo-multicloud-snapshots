@@ -1,0 +1,80 @@
+# Description: Discover an AWS EC2 instance by hostname tag and snapshot all volumes.
+# AAP on Azure must reach AWS API endpoints (public or hybrid connectivity).
+---
+- name: Create AWS EBS snapshots for an EC2 instance identified by hostname
+  hosts: localhost
+  gather_facts: true
+  collections:
+    - amazon.aws
+    - ansible.builtin
+
+  vars:
+    target_hostname: "{{ target_hostname | mandatory }}"
+    aws_region: "{{ aws_region | default('us-east-1') }}"
+    snapshot_name_prefix: "{{ snapshot_name_prefix | default('poc-snapshot') }}"
+
+  tasks:
+    - name: Look up EC2 instance by Name tag matching hostname
+      amazon.aws.ec2_instance_info:
+        region: "{{ aws_region }}"
+        filters:
+          "tag:Name": "{{ target_hostname }}"
+          instance-state-name: running
+      register: aws_ec2_info
+      tags:
+        - aws
+        - discover
+
+    - name: Ensure exactly one running EC2 instance matches the hostname
+      ansible.builtin.assert:
+        that:
+          - aws_ec2_info.instances | length == 1
+        fail_msg: >-
+          Expected one running EC2 instance with tag Name={{ target_hostname }},
+          found {{ aws_ec2_info.instances | length }}.
+      tags:
+        - aws
+        - discover
+
+    - name: Set EC2 instance facts for snapshot loop
+      ansible.builtin.set_fact:
+        aws_ec2_instance: "{{ aws_ec2_info.instances[0] }}"
+      tags:
+        - aws
+        - discover
+
+    - name: Create an EBS snapshot for each attached volume
+      amazon.aws.ec2_snapshot:
+        region: "{{ aws_region }}"
+        instance_id: "{{ aws_ec2_instance.instance_id }}"
+        device_name: "{{ item.device_name }}"
+        description: "PoC snapshot for {{ target_hostname }} {{ item.device_name }}"
+        snapshot_tags:
+          Name: >-
+            {{ snapshot_name_prefix }}-{{ target_hostname }}-{{ item.device_name | regex_replace('/', '-') }}
+          Demo: multicloud-snapshots
+          SourceHostname: "{{ target_hostname }}"
+          RetentionDays: "{{ snapshot_retention_days | default(30) | string }}"
+        wait: true
+        wait_timeout: 600
+      loop: "{{ aws_ec2_instance.block_device_mappings }}"
+      register: aws_snapshot_results
+      tags:
+        - aws
+        - snapshot
+
+    - name: Publish AWS snapshot results for downstream workflow nodes
+      ansible.builtin.set_stats:
+        data:
+          aws_snapshots_created: "{{ aws_snapshot_results.results | map(attribute='snapshot_id') | list }}"
+          aws_snapshot_hostname: "{{ target_hostname }}"
+      tags:
+        - aws
+        - snapshot
+
+    - name: Display created AWS snapshot IDs
+      ansible.builtin.debug:
+        msg: "Created {{ aws_snapshot_results.results | length }} AWS snapshot(s) for {{ target_hostname }}."
+      tags:
+        - aws
+        - snapshot

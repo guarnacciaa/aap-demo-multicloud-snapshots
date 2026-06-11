@@ -1,0 +1,36 @@
+# Description: Smoke-test playbook for local validation (syntax and module wiring).
+# Does not create snapshots; checks required variables and collection imports.
+---
+- name: Verify multicloud snapshots demo prerequisites
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - ansible.builtin
+
+  tasks:
+    - name: Confirm required demo variables are defined
+      ansible.builtin.assert:
+        that:
+          - demo_organization_name is defined
+          - demo_project_name is defined
+          - azure_resource_group is defined
+          - azure_vm_hostname is defined
+          - aws_ec2_hostname is defined
+        fail_msg: Copy demo_variables.yml.example to demo_variables.yml and set required values.
+      tags:
+        - verify
+
+    - name: Confirm infra.aap_configuration collection is installed
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection list infra.aap_configuration
+      register: casc_collection
+      changed_when: false
+      failed_when: casc_collection.rc != 0
+      tags:
+        - verify
+
+    - name: Report verification status
+      ansible.builtin.debug:
+        msg: Prerequisite checks passed. Run playbooks/demo/snapshot_*.yml against live clouds for functional tests.
+      tags:
+        - verify

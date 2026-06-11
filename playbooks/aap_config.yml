@@ -1,0 +1,22 @@
+# Description: Apply AAP Configuration as Code for the multicloud snapshots demo.
+# Run from the artifact root after copying demo_variables.yml.example and vault.yml.
+# Safe to re-run; infra.aap_configuration dispatch reconciles desired state.
+---
+- name: Apply multicloud snapshots demo configuration to AAP
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - infra.aap_configuration
+    - ansible.builtin
+  vars_files:
+    - ../group_vars/all/demo_variables.yml
+  roles:
+    # NOTE: infra.aap_configuration is validated content (not certified).
+    - role: infra.aap_configuration.dispatch
+      tags:
+        - all
+        - organizations
+        - credentials
+        - inventories
+        - job_templates
+        - workflow_job_templates

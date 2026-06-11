@@ -1,0 +1,76 @@
+# Description: Remove obsolete snapshots older than snapshot_retention_days (nice-to-have).
+# Gated by enable_snapshot_cleanup=true to avoid accidental deletion in demos.
+---
+- name: Clean up obsolete multicloud snapshots by retention policy
+  hosts: localhost
+  gather_facts: true
+  collections:
+    - azure.azcollection
+    - amazon.aws
+    - ansible.builtin
+
+  vars:
+    enable_snapshot_cleanup: "{{ enable_snapshot_cleanup | default(false) }}"
+    snapshot_retention_days: "{{ snapshot_retention_days | default(30) | int }}"
+    snapshot_name_prefix: "{{ snapshot_name_prefix | default('poc-snapshot') }}"
+    azure_resource_group: "{{ azure_resource_group | mandatory }}"
+    aws_region: "{{ aws_region | default('us-east-1') }}"
+
+  tasks:
+    - name: Skip cleanup when enable_snapshot_cleanup is false
+      ansible.builtin.meta: end_play
+      when: not (enable_snapshot_cleanup | bool)
+      tags:
+        - cleanup
+
+    - name: Calculate retention cutoff timestamp
+      ansible.builtin.set_fact:
+        retention_cutoff_epoch: "{{ (ansible_date_time.epoch | int) - (snapshot_retention_days * 86400) }}"
+      tags:
+        - cleanup
+
+    - name: List Azure demo snapshots eligible for review
+      azure.azcollection.azure_rm_snapshot_info:
+        resource_group: "{{ azure_resource_group }}"
+      register: azure_snapshots
+      tags:
+        - azure
+        - cleanup
+
+    - name: Delete Azure snapshots older than retention policy with demo tag
+      azure.azcollection.azure_rm_snapshot:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ item.name }}"
+        state: absent
+      loop: "{{ azure_snapshots.snapshots | default([]) }}"
+      when:
+        - item.tags.Demo | default('') == 'multicloud-snapshots'
+        - item.name is search(snapshot_name_prefix)
+        - (item.time_created | to_datetime('%Y-%m-%dT%H:%M:%S.%f%z')).strftime('%s') | int < retention_cutoff_epoch | int
+      tags:
+        - azure
+        - cleanup
+
+    - name: List AWS demo snapshots
+      amazon.aws.ec2_snapshot_info:
+        region: "{{ aws_region }}"
+        filters:
+          tag:Demo: multicloud-snapshots
+      register: aws_snapshots
+      tags:
+        - aws
+        - cleanup
+
+    - name: Delete AWS snapshots older than retention policy
+      amazon.aws.ec2_snapshot:
+        region: "{{ aws_region }}"
+        snapshot_id: "{{ item.snapshot_id }}"
+        state: absent
+      loop: "{{ aws_snapshots.snapshots | default([]) }}"
+      when:
+        - item.tags.Name is defined
+        - item.tags.Name is search(snapshot_name_prefix)
+        - item.start_time | to_datetime('%Y-%m-%dT%H:%M:%S.%f%z').strftime('%s') | int < retention_cutoff_epoch | int
+      tags:
+        - aws
+        - cleanup
