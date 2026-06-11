@@ -7,6 +7,7 @@
   gather_facts: false
   collections:
     - infra.aap_configuration
+    - ansible.controller
     - ansible.builtin
   vars_files:
     - ../vault.yml
@@ -37,5 +38,28 @@
         - projects
         - execution_environments
         - labels
+        - hosts
+        - groups
         - job_templates
         - workflow_job_templates
+
+  post_tasks:
+    # Dispatch creates child inventories first, but input_inventories on the
+    # constructed inventory is not always applied on initial create. Reconcile
+    # after dispatch so Demo-Multicloud aggregates Azure-Resources and AWS-Resources.
+    - name: Wire constructed inventory input sources
+      ansible.controller.inventory:
+        name: "{{ demo_inventory_name }}"
+        organization: "{{ demo_organization_name }}"
+        kind: constructed
+        input_inventories:
+          - Azure-Resources
+          - AWS-Resources
+        controller_host: "https://{{ aap_hostname }}"
+        controller_username: "{{ aap_username }}"
+        controller_password: "{{ aap_password }}"
+        validate_certs: "{{ aap_validate_certs }}"
+        state: present
+      tags:
+        - always
+        - inventories

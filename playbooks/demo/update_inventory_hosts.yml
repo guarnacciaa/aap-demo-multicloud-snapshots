@@ -1,0 +1,101 @@
+# Description: Refresh AAP host ansible_host values after cloud provisioning.
+# Looks up Azure and AWS public IPs by hostname, updates hosts in the child
+# inventories (Azure-Resources, AWS-Resources). Demo-Multicloud aggregates them
+# once input_inventories is wired (see aap_config.yml post_tasks).
+---
+- name: Update multicloud demo host variables in AAP inventories
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - azure.azcollection
+    - amazon.aws
+    - ansible.controller
+    - ansible.builtin
+
+  vars:
+    controller_auth: &controller_auth
+      controller_host: "https://{{ aap_hostname }}"
+      controller_username: "{{ aap_username }}"
+      controller_password: "{{ aap_password }}"
+      validate_certs: "{{ aap_validate_certs }}"
+
+  tasks:
+    - name: Look up Azure VM network details
+      azure.azcollection.azure_rm_virtualmachine_info:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ azure_vm_hostname }}"
+      register: azure_vm_info
+      tags:
+        - azure
+        - inventory
+
+    - name: Resolve Azure VM public IP address
+      ansible.builtin.set_fact:
+        azure_public_ip: >-
+          {{
+            (
+              azure_vm_info.vms[0].public_ips[0]
+              if (
+                azure_vm_info.vms | length > 0
+                and azure_vm_info.vms[0].public_ips is defined
+                and azure_vm_info.vms[0].public_ips | length > 0
+              )
+              else ''
+            )
+          }}
+      tags:
+        - azure
+        - inventory
+
+    - name: Update Azure host in AAP inventory
+      ansible.controller.host:
+        name: "{{ azure_vm_hostname }}"
+        inventory: Azure-Resources
+        variables:
+          cloud: azure
+          ansible_host: "{{ azure_public_ip | default(azure_vm_hostname, true) }}"
+          snapshot_target: true
+        <<: *controller_auth
+      when: azure_vm_info.vms | length > 0
+      tags:
+        - azure
+        - inventory
+
+    - name: Look up AWS EC2 instance by Name tag
+      amazon.aws.ec2_instance_info:
+        region: "{{ aws_region }}"
+        filters:
+          "tag:Name": "{{ aws_ec2_hostname }}"
+          "instance-state-name": running
+      register: aws_ec2_info
+      tags:
+        - aws
+        - inventory
+
+    - name: Update AWS host in AAP inventory
+      ansible.controller.host:
+        name: "{{ aws_ec2_hostname }}"
+        inventory: AWS-Resources
+        variables:
+          cloud: aws
+          ansible_host: >-
+            {{ aws_ec2_info.instances[0].public_ip_address
+               | default(aws_ec2_hostname, true) }}
+          snapshot_target: true
+        <<: *controller_auth
+      when: aws_ec2_info.instances | length > 0
+      tags:
+        - aws
+        - inventory
+
+    - name: Display inventory update summary
+      ansible.builtin.debug:
+        msg: >-
+          Azure host {{ azure_vm_hostname }}:
+          {{ azure_public_ip | default('not found') }}.
+          AWS host {{ aws_ec2_hostname }}:
+          {{ aws_ec2_info.instances[0].public_ip_address | default('not found')
+             if (aws_ec2_info.instances | length > 0) else 'not found' }}.
+          Refresh Demo-Multicloud in the AAP UI to see aggregated hosts.
+      tags:
+        - inventory

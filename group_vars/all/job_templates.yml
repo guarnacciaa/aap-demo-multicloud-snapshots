@@ -39,6 +39,28 @@ controller_templates:
     labels:
       - "{{ demo_label_name }}"
 
+  - name: Update - Multicloud inventory hosts
+    organization: "{{ demo_organization_name }}"
+    inventory: "{{ demo_inventory_name }}"
+    project: "{{ demo_project_name }}"
+    playbook: playbooks/demo/update_inventory_hosts.yml
+    # Uses ansible.controller modules; omit custom cloud EE so AAP default EE applies.
+    credentials:
+      - "{{ azure_credential_name }}"
+      - "{{ aws_credential_name }}"
+    ask_variables_on_launch: false
+    extra_vars:
+      aap_hostname: "{{ aap_hostname }}"
+      aap_username: "{{ aap_username }}"
+      aap_password: "{{ aap_password }}"
+      aap_validate_certs: "{{ aap_validate_certs }}"
+      azure_vm_hostname: "{{ azure_vm_hostname }}"
+      azure_resource_group: "{{ azure_resource_group }}"
+      aws_ec2_hostname: "{{ aws_ec2_hostname }}"
+      aws_region: "{{ aws_region }}"
+    labels:
+      - "{{ demo_label_name }}"
+
   # --- Snapshot templates ---
 
   - name: Snapshot - Azure by hostname

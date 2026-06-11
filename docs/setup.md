@@ -196,6 +196,7 @@ If job templates fail to pull the image, confirm **Verify SSL** is disabled on t
 | Connection refused on push | Wrong registry host or port | Confirm `<aap_host>` matches `aap_hostname`; retry with port `8444` as shown above |
 | `couldn't resolve module/action 'azure.azcollection.*'` at job runtime | Job uses the placeholder EE (`quay.io/ansible/ansible-runner`) instead of the custom image | Set `demo_execution_environment_image` in `demo_variables.yml`, re-run `aap_config.yml`, and confirm the job template points to `ee-multicloud-snapshots` |
 | `x509: certificate signed by unknown authority` when Controller pulls the EE | Hub registry uses a self-signed certificate and the EE has no registry credential with SSL verification disabled | Re-run CasC after setting `demo_execution_environment_image`; confirm `PAH Container Registry` credential exists with **Verify SSL** off and is linked to the EE |
+| `Demo-Multicloud` inventory shows no hosts | Constructed inventory missing `input_inventories`, or hosts only in child inventories | Re-run `aap_config.yml`; confirm hosts under **Azure-Resources** / **AWS-Resources**; run **Update - Multicloud inventory hosts** after setup workflow |
 
 ## Apply CasC
 
@@ -217,4 +218,14 @@ This deletes the organization, project, templates, inventories, credentials, and
 
 ## Multicloud inventory (UC4)
 
-This artifact provisions a parent inventory `Demo-Multicloud` with child inventories `Azure-Resources` and `AWS-Resources`. Hosts and groups are defined in CasC (`hosts.yml`, `groups.yml`). After provisioning the VMs, update the host IP placeholders in `hosts.yml` if you want host-level operations beyond cloud API calls.
+This artifact provisions a parent inventory `Demo-Multicloud` with child inventories `Azure-Resources` and `AWS-Resources`. Hosts and groups are defined in CasC (`hosts.yml`, `groups.yml`).
+
+**Constructed inventory:** `Demo-Multicloud` aggregates hosts from the two child inventories via `input_inventories`. The dispatch role does not always set `input_inventories` on first create; `aap_config.yml` reconciles this in a post-task. After CasC, you should see placeholder hosts in `Azure-Resources` and `AWS-Resources`; `Demo-Multicloud` lists the same hosts once wiring succeeds.
+
+**After cloud provisioning:** the setup workflow runs **Update - Multicloud inventory hosts**, which sets `ansible_host` to each VM public IP. Re-open `Demo-Multicloud` in the AAP UI if hosts do not refresh immediately.
+
+If `Demo-Multicloud` is still empty:
+
+1. Confirm hosts exist under **Azure-Resources** and **AWS-Resources**.
+2. Re-run `ansible-playbook playbooks/aap_config.yml --vault-id @prompt` (post-task rewires `input_inventories`).
+3. Run **Update - Multicloud inventory hosts** after the setup workflow, or launch it manually from **Templates**.

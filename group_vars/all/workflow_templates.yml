@@ -25,11 +25,19 @@ controller_workflows:
       - identifier: provision_azure
         unified_job_template: Provision - Azure VM
         organization: "{{ demo_organization_name }}"
-        success_nodes: []
+        success_nodes:
+          - update_inventory_hosts
         failure_nodes: []
         always_nodes: []
       - identifier: provision_aws
         unified_job_template: Provision - AWS EC2
+        organization: "{{ demo_organization_name }}"
+        success_nodes:
+          - update_inventory_hosts
+        failure_nodes: []
+        always_nodes: []
+      - identifier: update_inventory_hosts
+        unified_job_template: Update - Multicloud inventory hosts
         organization: "{{ demo_organization_name }}"
         success_nodes: []
         failure_nodes: []

@@ -13,8 +13,8 @@ Expected: AAP organization, project, inventories, credentials, job templates, an
 ### From AAP UI
 
 1. Open **Templates** -> **WF - Demo setup (provision infrastructure)**.
-2. Launch the workflow. Azure and AWS provisioning run in parallel.
-3. Monitor both nodes until they complete. Note the public IPs from the job output.
+2. Launch **WF - Demo setup (provision infrastructure)**. Azure and AWS provisioning run in parallel, then **Update - Multicloud inventory hosts** refreshes AAP host variables.
+3. Monitor all nodes until they complete. Note the public IPs from the job output.
 
 ### From CLI (ad hoc)
 

@@ -65,6 +65,7 @@
       loop:
         - "Provision - Azure VM"
         - "Provision - AWS EC2"
+        - "Update - Multicloud inventory hosts"
         - "Snapshot - Azure by hostname"
         - "Snapshot - AWS by hostname"
         - "Snapshot - Verify"
