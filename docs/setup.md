@@ -179,7 +179,17 @@ ansible-playbook playbooks/aap_config.yml --vault-id @prompt
 
 Confirm in AAP: **Automation Execution** > **Infrastructure** > **Execution Environments** > `ee-multicloud-snapshots` shows the pushed image and the **PAH Container Registry** credential.
 
-If job templates fail to pull the image, confirm **Verify SSL** is disabled on that credential and that `hub_registry_host` matches the registry host in `demo_execution_environment_image` (no `https://` prefix).
+If job templates fail to pull the image:
+
+1. In **Automation Execution** > **Infrastructure** > **Execution Environments** > `ee-multicloud-snapshots`, confirm **Pull credential** is **PAH Container Registry** and open that credential: **Verify SSL** must be **off**.
+2. Confirm `hub_registry_host` matches the registry host in `demo_execution_environment_image` exactly (same IP/hostname and port; if you pushed to `<aap_host>:8444`, both must include `:8444`).
+3. Re-apply CasC (post-task wires the credential explicitly):
+
+   ```bash
+   ansible-playbook playbooks/aap_config.yml --tags credentials,execution_environments --vault-id @prompt
+   ```
+
+For local `podman pull` tests, use `--tls-verify=false` (Controller job pulls use the credential instead).
 
 **Troubleshooting**
 
@@ -196,6 +206,7 @@ If job templates fail to pull the image, confirm **Verify SSL** is disabled on t
 | Connection refused on push | Wrong registry host or port | Confirm `<aap_host>` matches `aap_hostname`; retry with port `8444` as shown above |
 | `couldn't resolve module/action 'azure.azcollection.*'` at job runtime | Job uses the placeholder EE (`quay.io/ansible/ansible-runner`) instead of the custom image | Set `demo_execution_environment_image` in `demo_variables.yml`, re-run `aap_config.yml`, and confirm the job template points to `ee-multicloud-snapshots` |
 | `x509: certificate signed by unknown authority` when Controller pulls the EE | Hub registry uses a self-signed certificate and the EE has no registry credential with SSL verification disabled | Re-run CasC after setting `demo_execution_environment_image`; confirm `PAH Container Registry` credential exists with **Verify SSL** off and is linked to the EE |
+| `unable to copy from source docker://<host>/ee-...` with x509 error | Same as above, or `hub_registry_host` does not match the registry in `demo_execution_environment_image` (including `:8444` if used for push) | Align `demo_execution_environment_image` and `hub_registry_host`; re-run `aap_config.yml --tags execution_environments,credentials`; in UI confirm EE shows **PAH Container Registry** with **Verify SSL** disabled |
 | `Demo-Multicloud` inventory shows no hosts | Constructed inventory missing `input_inventories`, or hosts only in child inventories | Re-run `aap_config.yml`; confirm hosts under **Azure-Resources** / **AWS-Resources**; run **Update - Multicloud inventory hosts** after setup workflow |
 | Sync task fails with HTTP 404 on `/api/v2/` | Legacy Controller API path on Platform Gateway | Use `ansible.controller` modules only; gateway path is `/api/controller/v2/` (AAP 2.5+) |
 | Sync task: inventory source not found | Wrong source name (`Demo-Multicloud` vs auto-created name) | Source is `Auto-created source for: Demo-Multicloud`; sync task resolves it via API lookup |

@@ -44,6 +44,25 @@
         - workflow_job_templates
 
   post_tasks:
+    # Dispatch may create the EE before the registry credential is linked.
+    # Reconcile so Controller pulls respect verify_ssl: false on self-signed PAH.
+    - name: Wire registry credential to custom execution environment
+      ansible.controller.execution_environment:
+        name: "{{ demo_execution_environment_name }}"
+        organization: "{{ demo_organization_name }}"
+        image: "{{ demo_execution_environment_image }}"
+        pull: missing
+        credential: "{{ hub_registry_credential_name }}"
+        controller_host: "https://{{ aap_hostname }}"
+        controller_username: "{{ aap_username }}"
+        controller_password: "{{ aap_password }}"
+        validate_certs: "{{ aap_validate_certs }}"
+        state: present
+      when: demo_execution_environment_image is not match('^CHANGE_ME/')
+      tags:
+        - always
+        - execution_environments
+
     # Dispatch creates child inventories first, but input_inventories on the
     # constructed inventory is not always applied on initial create. Reconcile
     # after dispatch so Demo-Multicloud aggregates Azure-Resources and AWS-Resources.
