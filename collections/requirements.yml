@@ -1,6 +1,12 @@
 ---
 collections:
+  # NOTE: infra.aap_configuration is validated content (Automation Hub).
+  # Its dependencies (ansible.platform, ansible.controller, ansible.hub,
+  # ansible.eda) are AAP-bundled collections also from Automation Hub.
+  # Ensure ansible.cfg has a valid Automation Hub token before installing.
   - name: infra.aap_configuration
+  - name: ansible.platform
+  - name: ansible.controller
   - name: azure.azcollection
   - name: amazon.aws
 
