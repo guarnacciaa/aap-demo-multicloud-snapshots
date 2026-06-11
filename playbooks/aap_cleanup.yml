@@ -1,25 +1,34 @@
 # Description: Remove AAP objects created by this demo (destructive).
 # Requires explicit confirmation via demo_cleanup_confirm=true extra var.
 #
-# Cleanup runs in two phases because dispatch processes gateway objects
-# (organizations) BEFORE controller objects.  During creation that
-# dependency order is correct, but during deletion we must remove the
-# dependent objects first, then the organization.
+# Objects are removed in reverse dependency order so that parent references
+# (organization, inventory) still resolve during deletion.  Labels are
+# skipped because the Controller API does not support state: absent for
+# labels; they are removed automatically when the organization is deleted.
 #
-#   Phase 1 — delete controller objects (credentials, inventories,
-#             projects, templates …) while the org still exists.
-#   Phase 2 — delete the now-empty organization.
-#
-# Labels are skipped entirely: the Controller API does not support
-# state: absent for labels.  Orphan labels are harmless and disappear
-# when the organization is removed in Phase 2.
+# Each task uses ignore_errors so the playbook completes even if an object
+# was already removed or was never created.
 ---
-- name: Confirm multicloud snapshots demo cleanup
+- name: Cleanup multicloud snapshots demo from AAP
   hosts: localhost
+  connection: local
   gather_facts: false
   collections:
+    - ansible.controller
     - ansible.builtin
-  tasks:
+
+  vars_files:
+    - ../vault.yml
+    - ../group_vars/all/demo_variables.yml
+
+  vars:
+    controller_auth: &controller_auth
+      controller_host: "https://{{ aap_hostname }}"
+      controller_username: "{{ aap_username }}"
+      controller_password: "{{ aap_password }}"
+      validate_certs: "{{ aap_validate_certs }}"
+
+  pre_tasks:
     - name: Require demo_cleanup_confirm=true before removing AAP objects
       ansible.builtin.assert:
         that:
@@ -30,41 +39,120 @@
       tags:
         - always
 
-# Phase 1: remove all controller objects while the organization still exists.
-- name: "Phase 1 — Remove controller objects (keep organization)"
-  hosts: localhost
-  gather_facts: false
-  collections:
-    - infra.aap_configuration
-    - ansible.builtin
-  vars_files:
-    - ../vault.yml
-    - ../group_vars/all/demo_variables.yml
-  vars:
-    platform_state: absent
-    # Keep the organization alive during this phase so that object
-    # lookups by org name succeed.
-    aap_organizations: []
-    # Labels module does not support state: absent — skip them.
-    controller_labels: []
-  roles:
-    - role: infra.aap_configuration.dispatch
+  tasks:
+    # --- 1. Workflow templates (depend on job templates) ---
+    - name: Remove workflow templates
+      ansible.controller.workflow_job_template:
+        name: "{{ item }}"
+        organization: "{{ demo_organization_name }}"
+        state: absent
+        <<: *controller_auth
+      loop:
+        - "WF - Demo setup (provision infrastructure)"
+        - "WF - Multicloud snapshot and retention"
+        - "WF - Demo teardown (destroy infrastructure)"
+      ignore_errors: true
       tags:
-        - all
+        - workflows
 
-# Phase 2: remove the (now empty) organization.
-- name: "Phase 2 — Remove demo organization"
-  hosts: localhost
-  gather_facts: false
-  collections:
-    - infra.aap_configuration
-    - ansible.builtin
-  vars_files:
-    - ../vault.yml
-    - ../group_vars/all/demo_variables.yml
-  vars:
-    platform_state: absent
-  roles:
-    - role: infra.aap_configuration.gateway_organizations
+    # --- 2. Job templates (depend on project, inventory, credentials) ---
+    - name: Remove job templates
+      ansible.controller.job_template:
+        name: "{{ item }}"
+        organization: "{{ demo_organization_name }}"
+        state: absent
+        <<: *controller_auth
+      loop:
+        - "Provision - Azure VM"
+        - "Provision - AWS EC2"
+        - "Snapshot - Azure by hostname"
+        - "Snapshot - AWS by hostname"
+        - "Snapshot - Verify"
+        - "Snapshot - Cleanup (optional)"
+        - "Deprovision - Azure VM"
+        - "Deprovision - AWS EC2"
+      ignore_errors: true
       tags:
-        - all
+        - templates
+
+    # --- 3. Inventories (hosts/groups are removed with their inventory) ---
+    - name: Remove inventories
+      ansible.controller.inventory:
+        name: "{{ item }}"
+        organization: "{{ demo_organization_name }}"
+        state: absent
+        <<: *controller_auth
+      loop:
+        - "{{ demo_inventory_name }}"
+        - Azure-Resources
+        - AWS-Resources
+      ignore_errors: true
+      tags:
+        - inventories
+
+    # --- 4. Project ---
+    - name: Remove project
+      ansible.controller.project:
+        name: "{{ demo_project_name }}"
+        organization: "{{ demo_organization_name }}"
+        state: absent
+        <<: *controller_auth
+      ignore_errors: true
+      tags:
+        - projects
+
+    # --- 5. Credentials ---
+    - name: Remove credentials
+      ansible.controller.credential:
+        name: "{{ item.name }}"
+        organization: "{{ demo_organization_name }}"
+        credential_type: "{{ item.type }}"
+        state: absent
+        <<: *controller_auth
+      loop:
+        - name: "{{ azure_credential_name }}"
+          type: Microsoft Azure Resource Manager
+        - name: "{{ aws_credential_name }}"
+          type: Amazon Web Services
+      ignore_errors: true
+      tags:
+        - credentials
+
+    # --- 6. Execution environment ---
+    - name: Remove execution environment
+      ansible.controller.execution_environment:
+        name: "{{ demo_execution_environment_name }}"
+        organization: "{{ demo_organization_name }}"
+        state: absent
+        <<: *controller_auth
+      ignore_errors: true
+      tags:
+        - execution_environments
+
+    # --- 7. Labels ---
+    # The Controller API does not support deleting labels directly.
+    # They are removed when the parent organization is deleted below.
+    - name: Labels will be removed with the organization
+      ansible.builtin.debug:
+        msg: "Skipping labels — no direct delete API; removed with organization."
+      tags:
+        - labels
+
+    # --- 8. Organization (last — parent of all objects above) ---
+    - name: Remove organization
+      ansible.controller.organization:
+        name: "{{ demo_organization_name }}"
+        state: absent
+        <<: *controller_auth
+      ignore_errors: true
+      tags:
+        - organization
+
+  post_tasks:
+    - name: Cleanup summary
+      ansible.builtin.debug:
+        msg: >-
+          Cleanup complete. All demo objects have been removed from AAP.
+          To re-deploy, run: ansible-playbook playbooks/aap_config.yml
+      tags:
+        - always
