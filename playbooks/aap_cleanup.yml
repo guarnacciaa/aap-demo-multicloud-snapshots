@@ -24,6 +24,7 @@
     - infra.aap_configuration
     - ansible.builtin
   vars_files:
+    - ../vault.yml
     - ../group_vars/all/demo_variables.yml
   vars:
     platform_state: absent

@@ -9,6 +9,7 @@
     - infra.aap_configuration
     - ansible.builtin
   vars_files:
+    - ../vault.yml
     - ../group_vars/all/demo_variables.yml
   roles:
     # NOTE: infra.aap_configuration is validated content (not certified).

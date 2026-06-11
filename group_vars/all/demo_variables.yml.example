@@ -7,10 +7,11 @@
 
 demo_no_log: false
 
-aap_hostname: CHANGE_ME
-aap_username: "{{ controller_username | default('admin') }}"
-aap_password: "{{ controller_password }}"
-aap_validate_certs: false
+# --- AAP connection (dispatch role expects controller_* names) ---
+controller_hostname: CHANGE_ME
+controller_username: admin
+controller_password: "{{ vault_controller_password }}"
+controller_validate_certs: false
 
 demo_organization_name: Multicloud Demo
 demo_organization_description: Multicloud snapshot and retention PoC
