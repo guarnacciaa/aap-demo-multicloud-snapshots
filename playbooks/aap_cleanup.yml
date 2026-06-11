@@ -28,6 +28,9 @@
     - ../group_vars/all/demo_variables.yml
   vars:
     platform_state: absent
+    # Labels cannot be deleted via the Controller API (state: absent is not
+    # supported by the labels module). Override to empty so dispatch skips them.
+    controller_labels: []
   roles:
     - role: infra.aap_configuration.dispatch
       tags:
