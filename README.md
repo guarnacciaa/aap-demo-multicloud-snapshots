@@ -31,7 +31,7 @@ This demo automates **disk snapshot creation and retention** across **Azure** an
 ## Quick start
 
 ```bash
-cd artifacts/demos/aap-demo-multicloud-snapshots
+cd aap-demo-multicloud-snapshots
 ansible-galaxy collection install -r collections/requirements.yml -p collections
 cp ansible.cfg.example ansible.cfg
 cp group_vars/all/demo_variables.yml.example group_vars/all/demo_variables.yml
@@ -118,9 +118,3 @@ CasC in `group_vars/all/inventories.yml` defines the hierarchy. Re-running `play
 | infra.aap_configuration | validated | AAP Configuration as Code |
 | azure.azcollection | certified | Azure VM and snapshot modules |
 | amazon.aws | certified | EC2 and EBS snapshot modules |
-
-## References
-
-- `knowledge/patterns/aap-as-code.md` (workbench)
-- Red Hat AAP 2.6 documentation
-- Azure Application Gateway and AWS EBS snapshot product docs
