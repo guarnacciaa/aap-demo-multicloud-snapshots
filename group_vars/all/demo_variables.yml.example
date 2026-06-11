@@ -6,6 +6,9 @@
 # ============================================================================
 
 demo_no_log: false
+# Unmask errors from infra.aap_configuration roles (credentials, etc.).
+# Set to true in production to hide secrets from job output.
+aap_configuration_secure_logging: false
 
 # --- AAP connection ---
 # controller_username and controller_password live in vault.yml.
