@@ -1,10 +1,53 @@
 # Sync Demo-Multicloud after child inventory hosts or input_inventories change.
 # Constructed inventories copy hosts from input inventories at sync time only.
-# Uses ansible.controller modules (gateway-aware); do not call /api/v2/ directly.
+# Automation Controller auto-creates exactly one source named "Auto-created source for: <inventory>".
 ---
+- name: Resolve constructed inventory record
+  ansible.builtin.set_fact:
+    _constructed_inventory: >-
+      {{
+        query(
+          'ansible.controller.controller_api',
+          'inventories',
+          host='https://' ~ aap_hostname,
+          username=aap_username,
+          password=aap_password,
+          validate_certs=aap_validate_certs,
+          query_params={
+            'name': demo_inventory_name,
+            'organization__name': demo_organization_name,
+          },
+          expect_one=true
+        ) | first
+      }}
+
+- name: Resolve constructed inventory source IDs
+  ansible.builtin.set_fact:
+    _constructed_inventory_source_ids: >-
+      {{
+        query(
+          'ansible.controller.controller_api',
+          'inventory_sources',
+          host='https://' ~ aap_hostname,
+          username=aap_username,
+          password=aap_password,
+          validate_certs=aap_validate_certs,
+          query_params={'inventory': _constructed_inventory.id},
+          return_ids=true
+        )
+      }}
+
+- name: Assert constructed inventory source exists
+  ansible.builtin.assert:
+    that:
+      - _constructed_inventory_source_ids | length > 0
+    fail_msg: >-
+      Constructed inventory {{ demo_inventory_name }} has no inventory source.
+      Confirm its kind is constructed in AAP, then re-run playbooks/aap_config.yml --tags inventories.
+
 - name: Sync constructed inventory from input inventories
   ansible.controller.inventory_source_update:
-    name: "{{ demo_inventory_name }}"
+    name: "{{ _constructed_source_item }}"
     inventory: "{{ demo_inventory_name }}"
     organization: "{{ demo_organization_name }}"
     wait: true
@@ -13,3 +56,6 @@
     controller_username: "{{ aap_username }}"
     controller_password: "{{ aap_password }}"
     validate_certs: "{{ aap_validate_certs }}"
+  loop: "{{ _constructed_inventory_source_ids }}"
+  loop_control:
+    loop_var: _constructed_source_item

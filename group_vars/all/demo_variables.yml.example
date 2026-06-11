@@ -27,6 +27,8 @@ demo_organization_description: Multicloud snapshot and retention PoC
 demo_project_name: Multicloud Snapshots Demo
 demo_label_name: multicloud-snapshots
 demo_inventory_name: Demo-Multicloud
+# Automation Controller auto-creates this source when kind is constructed (do not rename in the UI).
+demo_constructed_inventory_source_name: "Auto-created source for: {{ demo_inventory_name }}"
 demo_execution_environment_name: ee-multicloud-snapshots
 # Full image reference after building and pushing to Private Automation Hub.
 # Must match the tag used in podman push (see docs/setup.md).

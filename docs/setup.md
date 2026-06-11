@@ -198,6 +198,7 @@ If job templates fail to pull the image, confirm **Verify SSL** is disabled on t
 | `x509: certificate signed by unknown authority` when Controller pulls the EE | Hub registry uses a self-signed certificate and the EE has no registry credential with SSL verification disabled | Re-run CasC after setting `demo_execution_environment_image`; confirm `PAH Container Registry` credential exists with **Verify SSL** off and is linked to the EE |
 | `Demo-Multicloud` inventory shows no hosts | Constructed inventory missing `input_inventories`, or hosts only in child inventories | Re-run `aap_config.yml`; confirm hosts under **Azure-Resources** / **AWS-Resources**; run **Update - Multicloud inventory hosts** after setup workflow |
 | Sync task fails with HTTP 404 on `/api/v2/` | Legacy Controller API path on Platform Gateway | Use `ansible.controller` modules only; gateway path is `/api/controller/v2/` (AAP 2.5+) |
+| Sync task: inventory source not found | Wrong source name (`Demo-Multicloud` vs auto-created name) | Source is `Auto-created source for: Demo-Multicloud`; sync task resolves it via API lookup |
 
 ## Apply CasC
 
