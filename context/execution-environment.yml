@@ -1,6 +1,11 @@
 ---
 # Build a custom EE when the platform default lacks Azure/AWS SDK dependencies.
 # See docs/setup.md for ansible-builder instructions.
+#
+# Keep python/system deps out of this file; amazon.aws and azure.azcollection
+# declare their own pip and bindep requirements. Adding python3-pip here via
+# microdnf can pull a UBI Python stack into the builder stage and break
+# ansible-builder's introspect step (ModuleNotFoundError: yaml).
 version: 3
 
 build_arg_defaults:
@@ -16,18 +21,6 @@ options:
 
 dependencies:
   galaxy: requirements.yml
-  python:
-    - boto3
-    - botocore
-    - azure-identity
-    - azure-mgmt-compute
-    - azure-mgmt-resource
-    - azure-mgmt-network
-    - azure-mgmt-storage
-  system:
-    - gcc [platform:rpm]
-    - python3-devel [platform:rpm]
-    - python3-pip [platform:rpm]
 
 # Project-root ansible.cfg (Automation Hub token) is required before build.
 additional_build_files:
@@ -35,9 +28,6 @@ additional_build_files:
     dest: configs
 
 additional_build_steps:
-  prepend_builder:
-    # ee-minimal-rhel9 builder stage may lack pip; required for python deps.
-    - RUN /usr/bin/microdnf install -y python3-pip && /usr/bin/microdnf clean all
   prepend_galaxy:
     # Use the same Hub server_list and token as local collection installs.
     - COPY _build/configs/ansible.cfg /etc/ansible/ansible.cfg

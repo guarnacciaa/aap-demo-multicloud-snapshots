@@ -103,10 +103,12 @@ If your platform EE lacks cloud SDKs, build a custom image from `context/executi
 
 **Build and register**
 
-Run the build from the artifact root so paths to `ansible.cfg` and the build context resolve correctly:
+Run the build from the artifact root so paths to `ansible.cfg` and the build context resolve correctly. Remove any previous build output first:
 
 ```bash
 cd ~/aap-demo-multicloud-snapshots
+rm -rf context/_build context/Containerfile
+
 ansible-builder build \
   -f context/execution-environment.yml \
   -t ee-multicloud-snapshots:latest \
@@ -122,7 +124,8 @@ Push the image to your registry and update `group_vars/all/execution_environment
 | `HTTP Code: 401, Message: Unauthorized` during `ansible-galaxy collection install` in the build | Missing or placeholder token in `../ansible.cfg`, or `ansible.cfg` not created at artifact root | Create `ansible.cfg` from the example and set a valid Hub token; confirm with the local `ansible-galaxy` command above |
 | `explicit_requirement_infra.aap_configuration ... 401` | Old `context/requirements.yml` with per-collection `source:` URLs or validated collections in the EE | Use the current `context/requirements.yml` (certified cloud collections only; no `source:` keys) |
 | Warning about `quay.io/ansible/ansible-runner` | Missing `images.base_image` in an old definition file | Use the current `context/execution-environment.yml` with `ee-minimal-rhel9` |
-| `/usr/bin/python3: No module named pip` in the builder stage | `ee-minimal-rhel9` builder image lacks pip until installed | Use the current `context/execution-environment.yml` (`prepend_builder` installs `python3-pip`) |
+| `/usr/bin/python3: No module named pip` in the builder stage | Explicit `python:` / `python3-pip` entries forced a UBI Python stack into the builder | Use the current galaxy-only `context/execution-environment.yml`; collections supply pip deps |
+| `ModuleNotFoundError: No module named 'yaml'` in `introspect.py` | Same root cause: microdnf `python3-pip` in the builder stage conflicts with `ee-minimal-rhel9` | Remove custom `prepend_builder` / system pip packages; rebuild from a clean `context/_build` directory |
 
 ## Apply CasC
 
