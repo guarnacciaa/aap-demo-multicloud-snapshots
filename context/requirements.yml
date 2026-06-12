@@ -1,8 +1,12 @@
 ---
-# Certified collections for cloud provisioning and snapshot playbooks.
-# Do not set per-collection source URLs here; ansible-galaxy resolves servers
-# from ../ansible.cfg (automation_hub_certified / automation_hub_validated).
-# CasC (infra.aap_configuration) is installed locally, not in this EE.
+# Certified collections for cloud provisioning, snapshot, and AAP inventory
+# update playbooks. Do not set per-collection source URLs here; ansible-galaxy
+# resolves servers from ../ansible.cfg (automation_hub_certified /
+# automation_hub_validated).
+# ansible.controller is required by update_inventory_hosts.yml, which calls
+# ansible.controller.host to write public IPs back into AAP child inventories.
+# CasC orchestration (infra.aap_configuration) is installed locally only.
 collections:
   - name: azure.azcollection
   - name: amazon.aws
+  - name: ansible.controller
