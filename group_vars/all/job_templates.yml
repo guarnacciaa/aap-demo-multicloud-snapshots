@@ -44,7 +44,9 @@ controller_templates:
     inventory: "{{ demo_inventory_name }}"
     project: "{{ demo_project_name }}"
     playbook: playbooks/demo/update_inventory_hosts.yml
-    # Uses ansible.controller modules; omit custom cloud EE so AAP default EE applies.
+    # Requires the custom EE: uses azure.azcollection and amazon.aws to look up
+    # public IPs before updating AAP host variables via ansible.controller.
+    execution_environment: "{{ demo_execution_environment_name }}"
     credentials:
       - "{{ azure_credential_name }}"
       - "{{ aws_credential_name }}"
