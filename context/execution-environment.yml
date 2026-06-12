@@ -2,10 +2,10 @@
 # Build a custom EE when the platform default lacks Azure/AWS SDK dependencies.
 # See docs/setup.md for ansible-builder instructions.
 #
-# Keep python/system deps out of this file; amazon.aws and azure.azcollection
-# declare their own pip and bindep requirements. Adding python3-pip here via
-# microdnf can pull a UBI Python stack into the builder stage and break
-# ansible-builder's introspect step (ModuleNotFoundError: yaml).
+# ee-minimal-rhel9 does not ship pip. python3-pip is installed in prepend_build
+# (the builder stage) so the assemble script can install azure.azcollection and
+# amazon.aws Python dependencies. This does not affect the galaxy introspect step
+# (a separate stage) and does not add pip to the final image.
 version: 3
 
 build_arg_defaults:
@@ -31,6 +31,10 @@ additional_build_steps:
   prepend_galaxy:
     # Use the same Hub server_list and token as local collection installs.
     - COPY _build/configs/ansible.cfg /etc/ansible/ansible.cfg
+  prepend_build:
+    # Install pip in the builder stage so the assemble script can install
+    # Python requirements declared by azure.azcollection and amazon.aws.
+    - RUN microdnf install -y python3-pip && microdnf clean all
   append_final:
     # Do not ship ansible.cfg in the final image (may contain tokens).
     - RUN rm -f /etc/ansible/ansible.cfg
