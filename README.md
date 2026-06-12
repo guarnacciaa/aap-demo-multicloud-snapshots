@@ -1,5 +1,6 @@
 # Multicloud VM Snapshot and Retention Demo
 
+![Status](https://img.shields.io/badge/Status-WIP-yellow)
 ![Red Hat Ansible Automation Platform](https://img.shields.io/badge/AAP-2.6-red)
 ![Configuration as Code](https://img.shields.io/badge/CasC-infra.aap_configuration-blue)
 ![Azure](https://img.shields.io/badge/Azure-azcollection-0078d4)
