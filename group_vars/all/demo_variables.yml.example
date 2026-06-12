@@ -22,6 +22,17 @@ aap_validate_certs: false
 # Do not use legacy /api/v2/ on the gateway hostname.
 aap_controller_api_prefix: /api/controller/v2
 
+# --- AAP Bearer token (required for AAP 2.5+ Platform Gateway) ---
+# Username/password auth requires a token request to /api/o/token/, which the
+# Platform Gateway does not expose → HTTP 404 on direct ansible.controller calls.
+# Generate a personal access token in the AAP UI: User menu → Tokens → Add,
+# then store it in vault.yml as vault_aap_token and map it here.
+# When aap_token is defined it takes precedence over username/password in all
+# ansible.controller module calls (update_inventory_hosts, sync tasks).
+# Leave commented out if you are running against an older AAP 2.4 controller
+# accessed directly (not through the Platform Gateway).
+# aap_token: "{{ vault_aap_token }}"
+
 demo_organization_name: Multicloud Demo
 demo_organization_description: Multicloud snapshot and retention PoC
 demo_project_name: Multicloud Snapshots Demo

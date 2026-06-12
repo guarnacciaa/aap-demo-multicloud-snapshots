@@ -13,10 +13,15 @@
     - ansible.builtin
 
   vars:
+    # aap_token (Bearer token) takes priority over username/password when defined.
+    # Required for AAP 2.5+ Platform Gateway, where the OAuth /api/o/token/
+    # endpoint is not exposed and direct username/password auth returns 404.
+    # Generate a token in the AAP UI (User → Tokens) and store it in vault.yml.
     controller_auth: &controller_auth
       controller_host: "https://{{ aap_hostname }}"
-      controller_username: "{{ aap_username }}"
-      controller_password: "{{ aap_password }}"
+      controller_username: "{{ aap_username | default(omit, true) }}"
+      controller_password: "{{ aap_password | default(omit, true) }}"
+      controller_oauthtoken: "{{ aap_token | default(omit, true) }}"
       validate_certs: "{{ aap_validate_certs }}"
 
   tasks:
