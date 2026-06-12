@@ -2,10 +2,10 @@
 # Build a custom EE when the platform default lacks Azure/AWS SDK dependencies.
 # See docs/setup.md for ansible-builder instructions.
 #
-# ee-minimal-rhel9 does not ship pip. python3-pip is installed in prepend_builder
-# (the builder stage) so the assemble script can install azure.azcollection and
-# amazon.aws Python dependencies. This does not affect the galaxy introspect step
-# (a separate stage) and does not add pip to the final image.
+# ee-supported-rhel9 is used as base because it ships pip and pyyaml out of the
+# box. azure.azcollection and amazon.aws require both during the build: pip for
+# the assemble step and pyyaml for the introspect step. ee-minimal-rhel9 lacks
+# both and would need manual prepend_builder/prepend_base workarounds.
 version: 3
 
 build_arg_defaults:
@@ -13,11 +13,7 @@ build_arg_defaults:
 
 images:
   base_image:
-    name: registry.redhat.io/ansible-automation-platform-26/ee-minimal-rhel9:latest
-
-# ee-minimal-rhel9 uses microdnf, not dnf (AAP 2.6 EE builder reference).
-options:
-  package_manager_path: /usr/bin/microdnf
+    name: registry.redhat.io/ansible-automation-platform-26/ee-supported-rhel9:latest
 
 dependencies:
   galaxy: requirements.yml
@@ -31,10 +27,6 @@ additional_build_steps:
   prepend_galaxy:
     # Use the same Hub server_list and token as local collection installs.
     - COPY _build/configs/ansible.cfg /etc/ansible/ansible.cfg
-  prepend_builder:
-    # Install pip in the builder stage so the assemble script can install
-    # Python requirements declared by azure.azcollection and amazon.aws.
-    - RUN microdnf install -y python3-pip && microdnf clean all
   append_final:
     # Do not ship ansible.cfg in the final image (may contain tokens).
     - RUN rm -f /etc/ansible/ansible.cfg
