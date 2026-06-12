@@ -33,14 +33,14 @@ Tracks testing progress for this demo. Update after each session. For procedural
 | Component | Status | Last tested | Notes |
 |---|---|---|---|
 | Provision - Azure VM | Pass | 2026-06-12 | |
-| Provision - AWS EC2 | Not tested | — | |
+| Provision - AWS EC2 | Pass | 2026-06-12 | Deprecated `network` param replaced with `network_interfaces` |
 | Update - Multicloud inventory hosts | Not tested | — | |
 | Snapshot - Azure by hostname | Not tested | — | |
 | Snapshot - AWS by hostname | Not tested | — | |
 | Snapshot - Verify | Not tested | — | |
 | Snapshot - Cleanup (optional) | Not tested | — | |
 | Deprovision - Azure VM | Pass | 2026-06-12 | |
-| Deprovision - AWS EC2 | Not tested | — | |
+| Deprovision - AWS EC2 | Pass | 2026-06-12 | |
 
 ### Workflows
 

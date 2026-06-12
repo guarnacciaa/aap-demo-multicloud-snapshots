@@ -136,6 +136,7 @@ CasC in `group_vars/all/inventories.yml` defines the hierarchy. Re-running `play
 |---|---|---|
 | Provision - Azure VM | `playbooks/demo/provision_azure_vm.yml` | Azure SP |
 | Provision - AWS EC2 | `playbooks/demo/provision_aws_ec2.yml` | AWS IAM |
+| Update - Multicloud inventory hosts | `playbooks/demo/update_inventory_hosts.yml` | Azure SP, AWS IAM |
 
 ### Snapshot operations
 
@@ -157,7 +158,7 @@ CasC in `group_vars/all/inventories.yml` defines the hierarchy. Re-running `play
 
 | Workflow | Nodes | Purpose |
 |---|---|---|
-| WF - Demo setup (provision infrastructure) | Provision Azure VM + Provision AWS EC2 (parallel) | Create all demo infrastructure |
+| WF - Demo setup (provision infrastructure) | Provision Azure VM + Provision AWS EC2 (parallel) → Update - Multicloud inventory hosts | Create all demo infrastructure and populate inventories |
 | WF - Multicloud snapshot and retention | Azure snapshot -> AWS snapshot -> Verify -> Cleanup | Run the snapshot demo |
 | WF - Demo teardown (destroy infrastructure) | Cleanup snapshots -> Deprovision Azure + Deprovision AWS (parallel) | Remove everything |
 

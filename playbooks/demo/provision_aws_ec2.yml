@@ -148,10 +148,14 @@
         image_id: "{{ aws_ami_id }}"
         key_name: "{{ aws_key_pair_name }}"
         region: "{{ aws_region }}"
-        vpc_subnet_id: "{{ aws_subnet_result.subnet.id }}"
-        security_group: "{{ aws_sg_result.group_id }}"
-        network:
-          assign_public_ip: true
+        # network_interfaces replaces the deprecated network.assign_public_ip parameter
+        # (removed from amazon.aws after 2026-12-01).
+        network_interfaces:
+          - subnet_id: "{{ aws_subnet_result.subnet.id }}"
+            groups:
+              - "{{ aws_sg_result.group_id }}"
+            assign_public_ip: true
+            device_index: 0
         volumes:
           - device_name: /dev/sda1
             ebs:

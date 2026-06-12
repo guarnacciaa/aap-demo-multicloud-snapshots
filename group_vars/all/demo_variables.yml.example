@@ -97,8 +97,12 @@ aws_secret_key: "{{ vault_aws_secret_key }}"
 # --- AWS EC2 provisioning ---
 aws_ec2_hostname: aws-demo-vm01
 aws_instance_type: t3.small
-# RHEL 9 AMI ID varies by region. Find yours at:
-# https://access.redhat.com/solutions/15356 or use the AWS EC2 console.
+# AMI IDs are region-specific. Find the correct ID for your region at:
+# https://access.redhat.com/solutions/15356 or the AWS EC2 console (Images > AMIs).
+#
+# Example AMIs (verified, replace with the latest for your region):
+#   RHEL 9 - us-east-1:  find via AWS CLI or Red Hat Image Builder
+#   RHEL 10 - eu-north-1: ami-0754facaaac92a5bb
 aws_ami_id: CHANGE_ME
 aws_key_pair_name: demo-multicloud-keypair
 

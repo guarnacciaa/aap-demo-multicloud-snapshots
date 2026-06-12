@@ -49,6 +49,21 @@
         - deprovision
         - vm
 
+    # Explicit disk removal guards against the ConflictingUserInput error on
+    # re-provisioning. The azure_rm_virtualmachine remove_on_absent behaviour
+    # varies by collection version and disk naming; deleting the disk by name
+    # ensures no orphan remains even if the VM deletion did not clean it up.
+    - name: Remove the managed OS disk left by the VM (guard against orphaned disk)
+      azure.azcollection.azure_rm_manageddisk:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ target_hostname }}"
+        state: absent
+      ignore_errors: true
+      tags:
+        - azure
+        - deprovision
+        - vm
+
     - name: Delete the network interface
       azure.azcollection.azure_rm_networkinterface:
         resource_group: "{{ azure_resource_group }}"

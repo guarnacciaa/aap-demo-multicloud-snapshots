@@ -46,6 +46,21 @@
         - always
 
   tasks:
+    # Orphaned OS disks block reprovisioning: if the VM does not exist but its
+    # disk was left behind (e.g. from a partial deletion), Azure raises
+    # ConflictingUserInput and refuses CreateOption.FromImage. Remove the disk
+    # unconditionally before creating the VM so the playbook stays idempotent.
+    - name: Remove any orphaned OS disk with the same name as the target VM
+      azure.azcollection.azure_rm_manageddisk:
+        resource_group: "{{ azure_resource_group }}"
+        name: "{{ target_hostname }}"
+        state: absent
+      ignore_errors: true
+      tags:
+        - azure
+        - provision
+        - vm
+
     - name: Ensure Azure resource group exists
       azure.azcollection.azure_rm_resourcegroup:
         name: "{{ azure_resource_group }}"
