@@ -148,14 +148,16 @@
         image_id: "{{ aws_ami_id }}"
         key_name: "{{ aws_key_pair_name }}"
         region: "{{ aws_region }}"
-        # network_interfaces replaces the deprecated network.assign_public_ip parameter
-        # (removed from amazon.aws after 2026-12-01).
-        network_interfaces:
-          - subnet_id: "{{ aws_subnet_result.subnet.id }}"
-            groups:
-              - "{{ aws_sg_result.group_id }}"
-            assign_public_ip: true
-            device_index: 0
+        # vpc_subnet_id + security_groups + network.assign_public_ip is the correct
+        # way to launch into a specific subnet with a public IP. The network_interfaces
+        # parameter accepts existing ENI IDs only and does not support inline subnet
+        # or security group specs; using it here caused the module to fall back to
+        # the default VPC subnet search and fail with ConflictingUserInput.
+        vpc_subnet_id: "{{ aws_subnet_result.subnet.id }}"
+        security_groups:
+          - "{{ aws_sg_result.group_id }}"
+        network:
+          assign_public_ip: true
         volumes:
           - device_name: /dev/sda1
             ebs:
