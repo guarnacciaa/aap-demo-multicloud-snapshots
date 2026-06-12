@@ -33,10 +33,11 @@ additional_build_steps:
     # Use the same Hub server_list and token as local collection installs.
     - COPY _build/configs/ansible.cfg /etc/ansible/ansible.cfg
   prepend_builder:
-    # dbus-python (transitive dep of azure.azcollection) requires systemd-devel,
-    # dbus-devel, and glib2-devel to compile its C extension. These are not
-    # declared in the collection's bindep.txt so they must be seeded manually.
-    - RUN microdnf install -y systemd-devel dbus-devel glib2-devel python3-devel && microdnf clean all
+    # systemd-python and dbus-python (transitive deps of azure.azcollection)
+    # require C headers not declared in the collection's bindep.txt.
+    # ee-supported-rhel9 ships Python 3.12; python3.12-devel provides the
+    # matching Python.h under /usr/include/python3.12.
+    - RUN microdnf install -y systemd-devel dbus-devel glib2-devel python3.12-devel && microdnf clean all
   append_final:
     # Do not ship ansible.cfg in the final image (may contain tokens).
     - RUN rm -f /etc/ansible/ansible.cfg
