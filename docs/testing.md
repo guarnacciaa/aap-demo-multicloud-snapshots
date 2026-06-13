@@ -35,7 +35,7 @@ Tracks testing progress for this demo. Update after each session. For procedural
 | Provision - Azure VM | Pass | 2026-06-12 | |
 | Provision - AWS EC2 | Pass | 2026-06-12 | Deprecated `network` param replaced with `network_interfaces` |
 | Update - Multicloud inventory hosts | Pass | 2026-06-13 | Ran as part of WF - Demo setup |
-| Snapshot - Azure by hostname | Not tested | — | |
+| Snapshot - Azure by hostname | Pass | 2026-06-13 | Fixed: azure_rm_virtualmachine_info omits storage_profile; switched to azure_rm_resource_info (provider: Compute). set_stats key was state.id → id. |
 | Snapshot - AWS by hostname | Not tested | — | |
 | Snapshot - Verify | Not tested | — | |
 | Snapshot - Cleanup (optional) | Pass | 2026-06-13 | Ran as part of WF - Demo teardown |

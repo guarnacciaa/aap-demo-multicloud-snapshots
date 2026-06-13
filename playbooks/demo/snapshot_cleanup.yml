@@ -53,11 +53,13 @@
         resource_group: "{{ azure_resource_group }}"
         name: "{{ item.name }}"
         state: absent
-      loop: "{{ azure_snapshots.snapshots | default([]) }}"
+      # azure_rm_snapshot_info returns results under the 'state' key (not 'snapshots').
+      # timeCreated is the camelCase key returned by the module for the snapshot creation timestamp.
+      loop: "{{ azure_snapshots.state | default([]) }}"
       when:
         - item.tags.Demo | default('') == 'multicloud-snapshots'
         - item.name is search(snapshot_name_prefix)
-        - (item.time_created | to_datetime('%Y-%m-%dT%H:%M:%S.%f%z')).strftime('%s') | int < retention_cutoff_epoch | int
+        - (item.properties.timeCreated | to_datetime('%Y-%m-%dT%H:%M:%S.%f%z')).strftime('%s') | int < retention_cutoff_epoch | int
       tags:
         - azure
         - cleanup
