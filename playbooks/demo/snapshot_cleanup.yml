@@ -85,7 +85,7 @@
       when:
         - item.tags.Name is defined
         - item.tags.Name is search(snapshot_name_prefix)
-        - item.start_time | to_datetime('%Y-%m-%dT%H:%M:%S.%f%z').strftime('%s') | int < retention_cutoff_epoch | int
+        - item.start_time | regex_replace('\.\d+', '') | to_datetime('%Y-%m-%dT%H:%M:%S%z') | strftime('%s') | int < retention_cutoff_epoch | int
       tags:
         - aws
         - cleanup
