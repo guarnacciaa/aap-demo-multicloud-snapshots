@@ -92,6 +92,11 @@ controller_workflows:
       - identifier: cleanup_snapshots
         unified_job_template: Snapshot - Cleanup (optional)
         organization: "{{ demo_organization_name }}"
+        # Force a full snapshot purge during teardown: enable cleanup and set
+        # retention to 0 days so every snapshot is removed regardless of age.
+        extra_data:
+          enable_snapshot_cleanup: true
+          snapshot_retention_days: 0
         success_nodes:
           - deprovision_azure
           - deprovision_aws
