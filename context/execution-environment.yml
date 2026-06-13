@@ -45,6 +45,11 @@ additional_build_steps:
     # requires pyyaml and packaging from that same interpreter.
     # python3-pip is needed to install any remaining introspect deps via pip.
     - RUN microdnf install -y systemd-devel dbus-devel glib2-devel python3.12-devel python3-pyyaml python3-packaging python3-pip && microdnf clean all
+  prepend_final:
+    # C headers required by Python extension packages that azure.azcollection
+    # pulls in (systemd-python, dbus-python, gssapi/krb5). The assemble script
+    # runs pip install in this stage; devel packages must be present before it.
+    - RUN microdnf install -y krb5-devel systemd-devel dbus-devel glib2-devel python3.12-devel && microdnf clean all
   append_final:
     # Do not ship ansible.cfg in the final image (may contain tokens).
     - RUN rm -f /etc/ansible/ansible.cfg
