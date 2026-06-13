@@ -2,10 +2,10 @@
 # Build a custom EE when the platform default lacks Azure/AWS SDK dependencies.
 # See docs/setup.md for ansible-builder instructions.
 #
-# ee-supported-rhel9 is used as base because it ships pip and pyyaml out of the
-# box. azure.azcollection and amazon.aws require both during the build: pip for
-# the assemble step and pyyaml for the introspect step. ee-minimal-rhel9 lacks
-# both and would need manual prepend_builder/prepend_base workarounds.
+# ee-supported-rhel9 installs Ansible and its dependencies for Python 3.12.
+# $PYCMD defaults to /usr/bin/python3 (Python 3.9) in the builder stages, so
+# ENV PYCMD=/usr/bin/python3.12 is set in both prepend_builder and prepend_final
+# to ensure introspect.py, check_ansible, and assemble all target Python 3.12.
 version: 3
 
 build_arg_defaults:
@@ -33,22 +33,18 @@ additional_build_steps:
     # Use the same Hub server_list and token as local collection installs.
     - COPY _build/configs/ansible.cfg /etc/ansible/ansible.cfg
   prepend_builder:
-    # systemd-python and dbus-python (transitive deps of azure.azcollection)
-    # require C headers not declared in the collection's bindep.txt.
-    # ee-supported-rhel9 ships Python 3.12; python3.12-devel provides the
-    # matching Python.h under /usr/include/python3.12.
-    # PyYAML is required by ansible-builder's introspect.py (step 3/4) to read
-    # collection Python requirements. In EE spec v3 the builder stage runs inside
-    # the base image; on AAP 2.7 / Python 3.12 pyyaml is not pre-installed there.
-    # $PYCMD in the builder stage resolves to /usr/bin/python3 (Python 3.9,
-    # RHEL9 system default), not python3.12. ansible-builder's introspect.py
-    # requires pyyaml and packaging from that same interpreter.
-    # python3-pip is needed to install any remaining introspect deps via pip.
-    - RUN microdnf install -y systemd-devel dbus-devel glib2-devel python3.12-devel python3-pyyaml python3-packaging python3-pip && microdnf clean all
+    # Override $PYCMD to python3.12: ee-supported-rhel9 installs pyyaml and
+    # packaging for Python 3.12, so introspect.py must run with that interpreter.
+    - ENV PYCMD=/usr/bin/python3.12
+    # C headers for systemd-python and dbus-python (azure.azcollection transitive
+    # deps not declared in bindep.txt). python3.12-devel provides Python.h.
+    - RUN microdnf install -y systemd-devel dbus-devel glib2-devel python3.12-devel && microdnf clean all
   prepend_final:
-    # C headers required by Python extension packages that azure.azcollection
-    # pulls in (systemd-python, dbus-python, gssapi/krb5). The assemble script
-    # runs pip install in this stage; devel packages must be present before it.
+    # Same PYCMD override so check_ansible and assemble target Python 3.12,
+    # where Ansible and Ansible Runner are actually installed in this image.
+    - ENV PYCMD=/usr/bin/python3.12
+    # C headers needed by pip to build extension packages during the assemble
+    # step: systemd-python, dbus-python, and gssapi/krb5 (azure.azcollection).
     - RUN microdnf install -y krb5-devel systemd-devel dbus-devel glib2-devel python3.12-devel && microdnf clean all
   append_final:
     # Do not ship ansible.cfg in the final image (may contain tokens).
