@@ -4,8 +4,11 @@
 #
 # ee-supported-rhel9 installs Ansible and its dependencies for Python 3.12.
 # $PYCMD defaults to /usr/bin/python3 (Python 3.9) in the builder stages, so
-# ENV PYCMD=/usr/bin/python3.12 is set in both prepend_builder and prepend_final
-# to ensure introspect.py, check_ansible, and assemble all target Python 3.12.
+# ENV PYCMD=/usr/bin/python3.12 is set in prepend_builder and prepend_final.
+#
+# In EE spec v3, the assemble script (pip install of collection Python deps)
+# runs in the BUILDER stage, not the final stage. gcc and all C headers must
+# therefore be in prepend_builder, not prepend_final.
 version: 3
 
 build_arg_defaults:
@@ -33,19 +36,16 @@ additional_build_steps:
     # Use the same Hub server_list and token as local collection installs.
     - COPY _build/configs/ansible.cfg /etc/ansible/ansible.cfg
   prepend_builder:
-    # Override $PYCMD to python3.12: ee-supported-rhel9 installs pyyaml and
-    # packaging for Python 3.12, so introspect.py must run with that interpreter.
+    # Override $PYCMD to python3.12: pyyaml, packaging, and Ansible are
+    # installed for Python 3.12 in ee-supported-rhel9. assemble (pip install
+    # of collection Python deps) also runs in this stage, so gcc and all C
+    # headers must be present here — not in prepend_final.
     - ENV PYCMD=/usr/bin/python3.12
-    # C headers for systemd-python and dbus-python (azure.azcollection transitive
-    # deps not declared in bindep.txt). python3.12-devel provides Python.h.
-    - RUN microdnf install -y systemd-devel dbus-devel glib2-devel python3.12-devel && microdnf clean all
-  prepend_final:
-    # Same PYCMD override so check_ansible and assemble target Python 3.12,
-    # where Ansible and Ansible Runner are actually installed in this image.
-    - ENV PYCMD=/usr/bin/python3.12
-    # gcc and C headers needed by pip to compile extension packages during the
-    # assemble step: systemd-python, dbus-python, and gssapi/krb5.
     - RUN microdnf install -y gcc krb5-devel systemd-devel dbus-devel glib2-devel python3.12-devel && microdnf clean all
+  prepend_final:
+    # Override $PYCMD so check_ansible targets Python 3.12. No assemble runs
+    # in this stage; only check_ansible and dumb-init install.
+    - ENV PYCMD=/usr/bin/python3.12
   append_final:
     # Do not ship ansible.cfg in the final image (may contain tokens).
     - RUN rm -f /etc/ansible/ansible.cfg
