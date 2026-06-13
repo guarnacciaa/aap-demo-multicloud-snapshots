@@ -34,11 +34,11 @@ Tracks testing progress for this demo. Update after each session. For procedural
 |---|---|---|---|
 | Provision - Azure VM | Pass | 2026-06-12 | |
 | Provision - AWS EC2 | Pass | 2026-06-12 | Deprecated `network` param replaced with `network_interfaces` |
-| Update - Multicloud inventory hosts | Not tested | — | |
+| Update - Multicloud inventory hosts | Pass | 2026-06-13 | Ran as part of WF - Demo setup |
 | Snapshot - Azure by hostname | Not tested | — | |
 | Snapshot - AWS by hostname | Not tested | — | |
 | Snapshot - Verify | Not tested | — | |
-| Snapshot - Cleanup (optional) | Not tested | — | |
+| Snapshot - Cleanup (optional) | Pass | 2026-06-13 | Ran as part of WF - Demo teardown |
 | Deprovision - Azure VM | Pass | 2026-06-12 | |
 | Deprovision - AWS EC2 | Pass | 2026-06-12 | |
 
@@ -46,9 +46,9 @@ Tracks testing progress for this demo. Update after each session. For procedural
 
 | Component | Status | Last tested | Notes |
 |---|---|---|---|
-| WF - Demo setup (provision infrastructure) | Not tested | — | |
+| WF - Demo setup (provision infrastructure) | Pass | 2026-06-13 | |
 | WF - Multicloud snapshot and retention | Not tested | — | |
-| WF - Demo teardown (destroy infrastructure) | Not tested | — | |
+| WF - Demo teardown (destroy infrastructure) | Pass | 2026-06-13 | |
 
 ## Open issues
 

@@ -46,13 +46,30 @@
         - azure
         - discover
 
+    # azure_rm_virtualmachine_info does not expose storage_profile in all versions
+    # of azure.azcollection. Use azure_rm_resource_info to retrieve the raw Azure
+    # REST API response, which consistently includes properties.storageProfile.
+    - name: Get full Azure VM resource to extract managed disk IDs
+      azure.azcollection.azure_rm_resource_info:
+        resource_group: "{{ azure_resource_group }}"
+        provider: Microsoft.Compute
+        resource_type: virtualMachines
+        resource_name: "{{ target_hostname }}"
+        api_version: "2023-07-01"
+      register: azure_vm_resource
+      tags:
+        - azure
+        - discover
+
+    # The raw REST API response uses camelCase: storageProfile, osDisk, managedDisk.
+    # Combine the OS disk ID with any data disk IDs into a single list for snapshotting.
     - name: Build list of managed disk resource IDs attached to the VM
       ansible.builtin.set_fact:
         azure_disk_ids: >-
           {{
-            [azure_vm_info.vms[0].storage_profile.os_disk.managed_disk.id]
-            + (azure_vm_info.vms[0].storage_profile.data_disks | default([])
-               | map(attribute='managed_disk.id') | list)
+            [azure_vm_resource.response[0].properties.storageProfile.osDisk.managedDisk.id]
+            + (azure_vm_resource.response[0].properties.storageProfile.dataDisks | default([])
+               | map(attribute='managedDisk.id') | list)
           }}
       tags:
         - azure
