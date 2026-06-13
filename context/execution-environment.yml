@@ -40,8 +40,10 @@ additional_build_steps:
     # PyYAML is required by ansible-builder's introspect.py (step 3/4) to read
     # collection Python requirements. In EE spec v3 the builder stage runs inside
     # the base image; on AAP 2.7 / Python 3.12 pyyaml is not pre-installed there.
+    # ensurepip bootstraps pip for Python 3.12 (not present by default in the
+    # builder stage); PyYAML is then installed for introspect.py to import yaml.
     - RUN microdnf install -y systemd-devel dbus-devel glib2-devel python3.12-devel && microdnf clean all
-    - RUN python3 -m pip install --no-cache-dir PyYAML
+    - RUN python3.12 -m ensurepip --upgrade && python3.12 -m pip install --no-cache-dir PyYAML
   append_final:
     # Do not ship ansible.cfg in the final image (may contain tokens).
     - RUN rm -f /etc/ansible/ansible.cfg
