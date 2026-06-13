@@ -43,9 +43,9 @@ additional_build_steps:
     # Same PYCMD override so check_ansible and assemble target Python 3.12,
     # where Ansible and Ansible Runner are actually installed in this image.
     - ENV PYCMD=/usr/bin/python3.12
-    # C headers needed by pip to build extension packages during the assemble
-    # step: systemd-python, dbus-python, and gssapi/krb5 (azure.azcollection).
-    - RUN microdnf install -y krb5-devel systemd-devel dbus-devel glib2-devel python3.12-devel && microdnf clean all
+    # gcc and C headers needed by pip to compile extension packages during the
+    # assemble step: systemd-python, dbus-python, and gssapi/krb5.
+    - RUN microdnf install -y gcc krb5-devel systemd-devel dbus-devel glib2-devel python3.12-devel && microdnf clean all
   append_final:
     # Do not ship ansible.cfg in the final image (may contain tokens).
     - RUN rm -f /etc/ansible/ansible.cfg
