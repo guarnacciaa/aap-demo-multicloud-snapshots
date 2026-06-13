@@ -94,18 +94,10 @@
         - azure
         - snapshot
 
-    # Temporary diagnostic task — remove once return key is confirmed.
-    - name: Dump first snapshot result to inspect return structure
-      ansible.builtin.debug:
-        var: azure_snapshot_results.results[0]
-      tags:
-        - azure
-        - snapshot
-
     - name: Publish Azure snapshot results for downstream workflow nodes
       ansible.builtin.set_stats:
         data:
-          azure_snapshots_created: "{{ azure_snapshot_results.results | map(attribute='state.id') | list }}"
+          azure_snapshots_created: "{{ azure_snapshot_results.results | map(attribute='id') | list }}"
           azure_snapshot_hostname: "{{ target_hostname }}"
       tags:
         - azure
