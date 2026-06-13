@@ -59,7 +59,9 @@
       when:
         - item.tags.Demo | default('') == 'multicloud-snapshots'
         - item.name is search(snapshot_name_prefix)
-        - (item.properties.timeCreated | to_datetime('%Y-%m-%dT%H:%M:%S.%f%z')).strftime('%s') | int < retention_cutoff_epoch | int
+        # Azure returns up to 7 fractional-second digits; Python strptime %f accepts only 6.
+        # Truncate to 6 digits with regex_replace before parsing.
+        - (item.properties.timeCreated | regex_replace('(\.\d{6})\d+', '\1') | to_datetime('%Y-%m-%dT%H:%M:%S.%f%z')).strftime('%s') | int < retention_cutoff_epoch | int
       tags:
         - azure
         - cleanup
