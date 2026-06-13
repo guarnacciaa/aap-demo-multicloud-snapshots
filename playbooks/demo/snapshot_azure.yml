@@ -61,6 +61,14 @@
         - azure
         - discover
 
+    # Temporary diagnostic task — remove once key path is confirmed.
+    - name: Dump azure_vm_resource to inspect response structure
+      ansible.builtin.debug:
+        var: azure_vm_resource
+      tags:
+        - azure
+        - discover
+
     # The raw REST API response uses camelCase: storageProfile, osDisk, managedDisk.
     # Combine the OS disk ID with any data disk IDs into a single list for snapshotting.
     - name: Build list of managed disk resource IDs attached to the VM
