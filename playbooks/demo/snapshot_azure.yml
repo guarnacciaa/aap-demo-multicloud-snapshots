@@ -52,7 +52,7 @@
     - name: Get full Azure VM resource to extract managed disk IDs
       azure.azcollection.azure_rm_resource_info:
         resource_group: "{{ azure_resource_group }}"
-        provider: Microsoft.Compute
+        provider: Compute
         resource_type: virtualMachines
         resource_name: "{{ target_hostname }}"
         api_version: "2023-07-01"
