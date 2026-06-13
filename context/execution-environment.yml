@@ -12,7 +12,12 @@ build_arg_defaults:
   ANSIBLE_GALAXY_CLI_COLLECTION_OPTS: "-v"
 
 images:
+  # builder_image must also be ee-supported-rhel9: ansible-builder runs
+  # introspect.py in the builder stage (step 3/4), which requires pyyaml.
+  # The default builder image does not ship pyyaml and would fail at that step.
   base_image:
+    name: registry.redhat.io/ansible-automation-platform-27/ee-supported-rhel9:latest
+  builder_image:
     name: registry.redhat.io/ansible-automation-platform-27/ee-supported-rhel9:latest
 
 # Both ee-minimal-rhel9 and ee-supported-rhel9 use microdnf, not dnf.
