@@ -13,7 +13,7 @@ build_arg_defaults:
 
 images:
   base_image:
-    name: registry.redhat.io/ansible-automation-platform-26/ee-supported-rhel9:latest
+    name: registry.redhat.io/ansible-automation-platform-27/ee-supported-rhel9:latest
 
 # Both ee-minimal-rhel9 and ee-supported-rhel9 use microdnf, not dnf.
 # Without this override the assemble script calls /usr/bin/dnf and fails.
