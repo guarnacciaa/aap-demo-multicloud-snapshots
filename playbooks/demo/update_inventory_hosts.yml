@@ -21,7 +21,7 @@
       controller_host: "https://{{ aap_hostname }}"
       controller_username: "{{ aap_username | default(omit, true) }}"
       controller_password: "{{ aap_password | default(omit, true) }}"
-      controller_oauthtoken: "{{ aap_token | default(omit, true) }}"
+      controller_oauthtoken: "{{ aap_token if (aap_token is defined and aap_token | length > 0) else omit }}"
       validate_certs: "{{ aap_validate_certs }}"
 
   tasks:

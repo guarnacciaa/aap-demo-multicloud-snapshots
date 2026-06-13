@@ -55,6 +55,9 @@ controller_templates:
       aap_hostname: "{{ aap_hostname }}"
       aap_username: "{{ aap_username }}"
       aap_password: "{{ aap_password }}"
+      # aap_token takes priority over username/password for AAP 2.5+ gateway auth.
+      # Omitted (empty string) when not defined; the playbook handles the fallback.
+      aap_token: "{{ aap_token | default('') }}"
       aap_validate_certs: "{{ aap_validate_certs }}"
       azure_vm_hostname: "{{ azure_vm_hostname }}"
       azure_resource_group: "{{ azure_resource_group }}"
