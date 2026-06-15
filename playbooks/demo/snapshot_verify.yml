@@ -35,27 +35,11 @@
         resource_group: "{{ azure_resource_group }}"
         provider: Compute
         resource_type: snapshots
-        # 2023-07-03 is the GA version for Microsoft.Compute/snapshots.
-        # 2023-07-01 is VM-specific and returns an API error for this resource type.
-        api_version: "2023-07-03"
+        # Microsoft.Compute/snapshots supported API versions (from Azure error response):
+        # 2022-07-02, 2023-01-02, 2023-04-02, 2023-10-02, 2024-03-02, 2025-01-02, 2026-03-02.
+        # 2023-07-01 and 2023-07-03 are VM-specific versions; do not use for snapshots.
+        api_version: "2026-03-02"
       register: azure_snapshots_raw
-      tags:
-        - azure
-        - verify
-
-    # Diagnostics: show the raw API error so the correct version/path can be identified.
-    # Remove once the listing call is confirmed working.
-    - name: Show Azure REST API response shape for filter diagnostics
-      ansible.builtin.debug:
-        msg:
-          response_length: "{{ azure_snapshots_raw.response | length }}"
-          response_top_keys: "{{ azure_snapshots_raw.response[0].keys() | list
-            if azure_snapshots_raw.response | length > 0 else 'empty response' }}"
-          api_error: "{{ azure_snapshots_raw.response[0].error | default('no error key')
-            if azure_snapshots_raw.response | length > 0 else 'empty response' }}"
-          value_count: "{{ azure_snapshots_raw.response[0].value | length
-            if (azure_snapshots_raw.response | length > 0 and 'value' in azure_snapshots_raw.response[0])
-            else 'no value key' }}"
       tags:
         - azure
         - verify
