@@ -128,9 +128,29 @@ aws_sg_name: demo-multicloud-sg
 # Snapshot policy
 # ============================================================================
 
-snapshot_retention_days: 30
+# Set to true to enable the cleanup job template; false prevents any deletion.
 enable_snapshot_cleanup: false
+
 snapshot_name_prefix: poc-snapshot
+
+# --- Cleanup mode ---
+# Choose ONE of the following retention strategies for the Snapshot - Cleanup job:
+#
+# OPTION A: Time-based retention (default)
+#   Delete snapshots older than snapshot_retention_days days.
+#   snapshot_cleanup_mode: time
+#   snapshot_retention_days: 30
+#
+# OPTION B: Count-based retention
+#   Keep only the newest snapshot_retention_count snapshots per cloud provider;
+#   delete all older ones regardless of age.
+#   snapshot_cleanup_mode: count
+#   snapshot_retention_count: 1
+#
+# Override at launch via extra variables in the AAP job template if needed.
+snapshot_cleanup_mode: count
+snapshot_retention_days: 30
+snapshot_retention_count: 1
 
 # ============================================================================
 # Credential names (must match credentials.yml)
