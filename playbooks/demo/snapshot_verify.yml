@@ -26,38 +26,27 @@
         - always
 
   tasks:
-    - name: List Azure snapshots tagged for this demo
-      azure.azcollection.azure_rm_snapshot_info:
+    # azure_rm_snapshot_info without a name acts as a single-resource lookup and does
+    # not return a list. Use azure_rm_resource_info with resource_type: snapshots to
+    # enumerate all snapshots in the resource group via the Azure REST API, consistent
+    # with how snapshot_azure.yml retrieves VM disk details.
+    - name: List all Azure snapshots in the resource group via REST API
+      azure.azcollection.azure_rm_resource_info:
         resource_group: "{{ azure_resource_group }}"
-      register: azure_snapshots
+        provider: Compute
+        resource_type: snapshots
+        api_version: "2023-07-01"
+      register: azure_snapshots_raw
       tags:
         - azure
         - verify
 
-    # Temporary diagnostics: shows raw API return structure and tag/name values so
-    # mismatches between the module return key and the filter path can be identified.
-    # Remove once the filter is confirmed correct against a real snapshot list.
-    - name: Show raw Azure snapshot API response for filter diagnostics
-      ansible.builtin.debug:
-        msg:
-          snapshots_count: "{{ azure_snapshots.snapshots | default('KEY_MISSING') | length
-            if azure_snapshots.snapshots is defined else 'KEY_MISSING' }}"
-          first_snapshot_keys: "{{ azure_snapshots.snapshots[0].keys() | list
-            if (azure_snapshots.snapshots | default([])) | length > 0 else 'no snapshots returned' }}"
-          first_snapshot_tags: "{{ azure_snapshots.snapshots[0].tags | default('no tags')
-            if (azure_snapshots.snapshots | default([])) | length > 0 else 'no snapshots returned' }}"
-          first_snapshot_name: "{{ azure_snapshots.snapshots[0].name | default('no name')
-            if (azure_snapshots.snapshots | default([])) | length > 0 else 'no snapshots returned' }}"
-          top_level_keys: "{{ azure_snapshots.keys() | list }}"
-      tags:
-        - azure
-        - verify
-
-    - name: Filter Azure snapshots created by this demo for the Azure VM hostname
+    - name: Filter Azure snapshots created by this demo
       ansible.builtin.set_fact:
         azure_demo_snapshots: >-
           {{
-            azure_snapshots.snapshots | default([])
+            azure_snapshots_raw.response | default([])
+            | selectattr('tags', 'defined')
             | selectattr('tags.Demo', 'defined')
             | selectattr('tags.Demo', 'equalto', 'multicloud-snapshots')
             | selectattr('name', 'search', snapshot_name_prefix)
@@ -71,7 +60,10 @@
       ansible.builtin.assert:
         that:
           - azure_demo_snapshots | length > 0
-        fail_msg: No Azure snapshots found with demo tags and prefix {{ snapshot_name_prefix }}.
+        fail_msg: >-
+          No Azure snapshots found in {{ azure_resource_group }} with Demo tag
+          'multicloud-snapshots' and name prefix '{{ snapshot_name_prefix }}'.
+          Ensure the Snapshot - Azure by hostname job completed successfully first.
       tags:
         - azure
         - verify
