@@ -78,8 +78,10 @@
     - name: Create a snapshot for each managed disk
       azure.azcollection.azure_rm_snapshot:
         resource_group: "{{ azure_resource_group }}"
+        # Include both date and hour-minute so multiple runs on the same day each
+        # produce a distinct named snapshot, consistent with AWS behaviour.
         name: >-
-          {{ snapshot_name_prefix }}-{{ target_hostname }}-{{ item | basename | regex_replace('[^a-zA-Z0-9-]', '-') }}-{{ ansible_date_time.date | regex_replace('-', '') }}
+          {{ snapshot_name_prefix }}-{{ target_hostname }}-{{ item | basename | regex_replace('[^a-zA-Z0-9-]', '-') }}-{{ ansible_date_time.date | regex_replace('-', '') }}-{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}
         location: "{{ azure_vm_info.vms[0].location }}"
         creation_data:
           create_option: Copy

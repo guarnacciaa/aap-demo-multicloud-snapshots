@@ -57,25 +57,34 @@
     # Azure cleanup
     # -------------------------------------------------------------------------
 
+    # azure_rm_snapshot_info without a name does not enumerate all snapshots in a
+    # resource group. Use azure_rm_resource_info with resource_type: snapshots for
+    # reliable listing via the Azure REST API (same approach as snapshot_verify.yml).
     - name: List Azure demo snapshots eligible for review
-      azure.azcollection.azure_rm_snapshot_info:
+      azure.azcollection.azure_rm_resource_info:
         resource_group: "{{ azure_resource_group }}"
-      register: azure_snapshots
+        provider: Compute
+        resource_type: snapshots
+        # Microsoft.Compute/snapshots supported API versions:
+        # 2022-07-02, 2023-01-02, 2023-04-02, 2023-10-02, 2024-03-02, 2025-01-02, 2026-03-02.
+        api_version: "2026-03-02"
+      register: azure_snapshots_raw
       tags:
         - azure
         - cleanup
 
     # Time mode: delete snapshots created before the retention cutoff.
-    # azure_rm_snapshot_info returns results under the 'state' key (not 'snapshots').
-    # timeCreated is the camelCase key returned by the module for the creation timestamp.
+    # azure_rm_resource_info returns a list directly under .response.
+    # timeCreated is camelCase in the Azure REST API properties envelope.
     - name: Delete Azure snapshots older than retention policy (time mode)
       azure.azcollection.azure_rm_snapshot:
         resource_group: "{{ azure_resource_group }}"
         name: "{{ item.name }}"
         state: absent
-      loop: "{{ azure_snapshots.state | default([]) }}"
+      loop: "{{ azure_snapshots_raw.response | default([]) }}"
       when:
         - snapshot_cleanup_mode == 'time'
+        - item.tags is defined
         - item.tags.Demo | default('') == 'multicloud-snapshots'
         - item.name is search(snapshot_name_prefix)
         # Azure returns up to 7 fractional-second digits; Python strptime %f accepts only 6.
@@ -94,7 +103,8 @@
         # The tail beyond snapshot_retention_count items is the deletion candidate list.
         _azure_snapshots_sorted: >-
           {{
-            azure_snapshots.state | default([])
+            azure_snapshots_raw.response | default([])
+            | selectattr('tags', 'defined')
             | selectattr('tags.Demo', 'defined')
             | selectattr('tags.Demo', 'equalto', 'multicloud-snapshots')
             | selectattr('name', 'search', snapshot_name_prefix)
@@ -110,6 +120,7 @@
     - name: Identify Azure snapshots that exceed the retention count
       ansible.builtin.set_fact:
         # Everything after index snapshot_retention_count is older than what we want to keep.
+        # Slices everything after index N (0-based): those are the snapshots to delete.
         azure_snapshots_to_delete: "{{ _azure_snapshots_sorted[snapshot_retention_count | int:] }}"
       when: snapshot_cleanup_mode == 'count'
       tags:
