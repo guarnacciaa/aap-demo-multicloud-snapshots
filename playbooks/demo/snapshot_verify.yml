@@ -34,6 +34,25 @@
         - azure
         - verify
 
+    # Temporary diagnostics: shows raw API return structure and tag/name values so
+    # mismatches between the module return key and the filter path can be identified.
+    # Remove once the filter is confirmed correct against a real snapshot list.
+    - name: Show raw Azure snapshot API response for filter diagnostics
+      ansible.builtin.debug:
+        msg:
+          snapshots_count: "{{ azure_snapshots.snapshots | default('KEY_MISSING') | length
+            if azure_snapshots.snapshots is defined else 'KEY_MISSING' }}"
+          first_snapshot_keys: "{{ azure_snapshots.snapshots[0].keys() | list
+            if (azure_snapshots.snapshots | default([])) | length > 0 else 'no snapshots returned' }}"
+          first_snapshot_tags: "{{ azure_snapshots.snapshots[0].tags | default('no tags')
+            if (azure_snapshots.snapshots | default([])) | length > 0 else 'no snapshots returned' }}"
+          first_snapshot_name: "{{ azure_snapshots.snapshots[0].name | default('no name')
+            if (azure_snapshots.snapshots | default([])) | length > 0 else 'no snapshots returned' }}"
+          top_level_keys: "{{ azure_snapshots.keys() | list }}"
+      tags:
+        - azure
+        - verify
+
     - name: Filter Azure snapshots created by this demo for the Azure VM hostname
       ansible.builtin.set_fact:
         azure_demo_snapshots: >-
