@@ -35,33 +35,27 @@
         resource_group: "{{ azure_resource_group }}"
         provider: Compute
         resource_type: snapshots
-        api_version: "2023-07-01"
+        # 2023-07-03 is the GA version for Microsoft.Compute/snapshots.
+        # 2023-07-01 is VM-specific and returns an API error for this resource type.
+        api_version: "2023-07-03"
       register: azure_snapshots_raw
       tags:
         - azure
         - verify
 
-    # Diagnostics: Azure list operations wrap results in response[0].value (the Azure
-    # REST {"value": [...]} envelope). Remove once the response shape is confirmed.
+    # Diagnostics: show the raw API error so the correct version/path can be identified.
+    # Remove once the listing call is confirmed working.
     - name: Show Azure REST API response shape for filter diagnostics
       ansible.builtin.debug:
         msg:
           response_length: "{{ azure_snapshots_raw.response | length }}"
           response_top_keys: "{{ azure_snapshots_raw.response[0].keys() | list
             if azure_snapshots_raw.response | length > 0 else 'empty response' }}"
-          value_length: "{{ azure_snapshots_raw.response[0].value | length
+          api_error: "{{ azure_snapshots_raw.response[0].error | default('no error key')
+            if azure_snapshots_raw.response | length > 0 else 'empty response' }}"
+          value_count: "{{ azure_snapshots_raw.response[0].value | length
             if (azure_snapshots_raw.response | length > 0 and 'value' in azure_snapshots_raw.response[0])
             else 'no value key' }}"
-          first_item_name: "{{ azure_snapshots_raw.response[0].value[0].name
-            if (azure_snapshots_raw.response | length > 0
-                and 'value' in azure_snapshots_raw.response[0]
-                and azure_snapshots_raw.response[0].value | length > 0)
-            else 'no items' }}"
-          first_item_tags: "{{ azure_snapshots_raw.response[0].value[0].tags | default('no tags')
-            if (azure_snapshots_raw.response | length > 0
-                and 'value' in azure_snapshots_raw.response[0]
-                and azure_snapshots_raw.response[0].value | length > 0)
-            else 'no items' }}"
       tags:
         - azure
         - verify
