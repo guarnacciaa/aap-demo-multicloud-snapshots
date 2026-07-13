@@ -22,6 +22,8 @@ A single AAP workflow provisions Azure and AWS VMs, while a second workflow snap
 | 2 - Demo | `WF - Multicloud snapshot and retention` | Snapshot VMs, verify, optionally clean old snapshots |
 | 3 - Teardown | `WF - Demo teardown (destroy infrastructure)` | Remove snapshots and all provisioned resources |
 
+Phases 1 and 3 only exist when `demo_manage_infrastructure: true` (default); see [Deployment modes](#deployment-modes) for the customer/PoC mode that runs phase 2 only, against pre-existing infrastructure.
+
 1. Apply CasC: see [Quick start](#quick-start).
 2. In AAP, open **Templates** and launch workflows in order: Setup, Demo, Teardown.
 3. Individual job templates can also be launched standalone for targeted operations.
@@ -33,6 +35,19 @@ A single AAP workflow provisions Azure and AWS VMs, while a second workflow snap
 - AWS IAM user or role with EC2, VPC, and EBS permissions (create/describe/delete).
 - A RHEL 9 AMI ID for your chosen AWS region.
 - See [docs/setup.md](docs/setup.md) for detailed credential and EE setup.
+
+## Deployment modes
+
+`demo_manage_infrastructure` in `demo_variables.yml` (default `true`) controls how much of the AAP catalog this CasC creates:
+
+| Mode | `demo_manage_infrastructure` | AAP objects created | Use when |
+|---|---|---|---|
+| Lab / dev | `true` (default) | Full lifecycle: `Provision - *`, `Update - Multicloud inventory hosts`, `Deprovision - *`, `WF - Demo setup`, `WF - Demo teardown`, plus all snapshot objects | You are running the demo yourself and want AAP to create and destroy the VMs and networking |
+| Customer / PoC | `false` | Only `Snapshot - Azure/AWS by hostname`, `Snapshot - Verify`, `Snapshot - Cleanup (optional)`, and `WF - Multicloud snapshot and retention` | The customer already provides the VMs and networking; no provisioning or teardown object is created in AAP, removing any risk of accidentally launching a job that creates duplicate resources or deletes the customer's existing networking |
+
+In customer mode, set `azure_vm_hostname` / `azure_resource_group` and `aws_ec2_hostname` / `aws_region` to the customer's existing VM/instance, and scope the Azure/AWS credentials down to read + snapshot permissions only (see [docs/setup.md](docs/setup.md)).
+
+`group_vars/all/demo_variables.yml.example` marks every variable with `[ALWAYS REQUIRED]` or `[LAB/DEV ONLY]` banners so you can see at a glance what customer/PoC mode needs. `playbooks/aap_config.yml` and `playbooks/verify.yml` enforce this: the `[LAB/DEV ONLY]` variables are only validated when `demo_manage_infrastructure: true`, so leaving them at their example defaults never blocks a customer/PoC deployment.
 
 ## Quick start
 
@@ -125,10 +140,13 @@ CasC in `group_vars/all/inventories.yml` defines the hierarchy. Re-running `play
 | `playbooks/aap_config.yml` | Apply CasC to AAP |
 | `playbooks/aap_cleanup.yml` | Remove all CasC objects from AAP |
 | `group_vars/all/` | CasC variable definitions |
+| `group_vars/all/job_templates_infra.yml`, `group_vars/all/workflow_templates_infra.yml` | Provisioning/teardown job and workflow templates; merged in only when `demo_manage_infrastructure: true` (see [Deployment modes](#deployment-modes)) |
 | `context/execution-environment.yml` | Optional custom EE |
 | `docs/` | Setup, procedures, verification |
 
 ## Job templates
+
+Tables below list every job template the demo defines. The **Infrastructure provisioning** and **Infrastructure teardown** templates are only created in AAP when `demo_manage_infrastructure: true` (see [Deployment modes](#deployment-modes)); the **Snapshot operations** templates are always created.
 
 ### Infrastructure provisioning
 
@@ -156,11 +174,13 @@ CasC in `group_vars/all/inventories.yml` defines the hierarchy. Re-running `play
 
 ## Workflow templates
 
-| Workflow | Nodes | Purpose |
-|---|---|---|
-| WF - Demo setup (provision infrastructure) | Provision Azure VM + Provision AWS EC2 (parallel) → Update - Multicloud inventory hosts | Create all demo infrastructure and populate inventories |
-| WF - Multicloud snapshot and retention | Azure snapshot -> AWS snapshot -> Verify -> Cleanup | Run the snapshot demo |
-| WF - Demo teardown (destroy infrastructure) | Cleanup snapshots -> Deprovision Azure + Deprovision AWS (parallel) | Remove everything |
+`WF - Demo setup` and `WF - Demo teardown` are only created when `demo_manage_infrastructure: true` (see [Deployment modes](#deployment-modes)); `WF - Multicloud snapshot and retention` is always created.
+
+| Workflow | Nodes | Purpose | Mode |
+|---|---|---|---|
+| WF - Demo setup (provision infrastructure) | Provision Azure VM + Provision AWS EC2 (parallel) → Update - Multicloud inventory hosts | Create all demo infrastructure and populate inventories | Lab/dev only |
+| WF - Multicloud snapshot and retention | Azure snapshot -> AWS snapshot -> Verify -> Cleanup | Run the snapshot demo | Always |
+| WF - Demo teardown (destroy infrastructure) | Cleanup snapshots -> Deprovision Azure + Deprovision AWS (parallel) | Remove everything | Lab/dev only |
 
 ## Collections
 

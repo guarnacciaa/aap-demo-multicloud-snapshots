@@ -10,45 +10,51 @@ Tracks testing progress for this demo. Update after each session. For procedural
 
 | Component | Status | Last tested | Notes |
 |---|---|---|---|
-| CasC apply (`aap_config.yml`) | Pass | 2026-06-12 | |
-| CasC cleanup (`aap_cleanup.yml`) | Pass | 2026-06-12 | |
-| Smoke test (`verify.yml`) | Pass | 2026-06-15 | All 7 tasks ok on bastion: variables, collections (infra.aap_configuration, azure.azcollection, amazon.aws) |
+| CasC apply (`aap_config.yml`) | Not tested | — | |
+| CasC cleanup (`aap_cleanup.yml`) | Not tested | — | |
+| Smoke test (`verify.yml`) | Not tested | — | |
+
+### Roles
+
+| Component | Status | Last tested | Notes |
+|---|---|---|---|
+| _(none — this demo uses no custom roles)_ | — | — | |
 
 ### Execution environments
 
 | Component | Status | Last tested | Notes |
 |---|---|---|---|
-| EE build and push (azure.azcollection + amazon.aws) | Pass | 2026-06-12 | |
+| EE build and push (`ee-multicloud-snapshots`) | Not tested | — | |
 
 ### Inventories
 
 | Component | Status | Last tested | Notes |
 |---|---|---|---|
-| Azure-Resources (source) | Pass | 2026-06-12 | |
-| AWS-Resources (source) | Pass | 2026-06-12 | |
-| Demo-Multicloud (constructed) | Pass | 2026-06-12 | |
+| Azure-Resources | Not tested | — | |
+| AWS-Resources | Not tested | — | |
+| Demo-Multicloud (constructed) | Not tested | — | |
 
 ### Job templates
 
 | Component | Status | Last tested | Notes |
 |---|---|---|---|
-| Provision - Azure VM | Pass | 2026-06-12 | |
-| Provision - AWS EC2 | Pass | 2026-06-12 | Deprecated `network` param replaced with `network_interfaces` |
-| Update - Multicloud inventory hosts | Pass | 2026-06-13 | Ran as part of WF - Demo setup |
-| Snapshot - Azure by hostname | Pass | 2026-06-13 | Fixed: azure_rm_virtualmachine_info omits storage_profile; switched to azure_rm_resource_info (provider: Compute). set_stats key was state.id → id. |
-| Snapshot - AWS by hostname | Pass | 2026-06-15 | Confirmed via Snapshot - Verify output (3 completed snapshots found) |
-| Snapshot - Verify | Pass | 2026-06-15 | Fixed: missing extra_vars on job template; azure_rm_snapshot_info replaced with azure_rm_resource_info (api_version: 2026-03-02) |
-| Snapshot - Cleanup (optional) | Pass | 2026-06-15 | Count mode: kept 1 AWS snapshot, deleted 4; Azure listing fixed (azure_rm_resource_info api_version 2026-03-02) |
-| Deprovision - Azure VM | Pass | 2026-06-12 | |
-| Deprovision - AWS EC2 | Pass | 2026-06-12 | |
+| Provision - Azure VM | Not tested | — | |
+| Provision - AWS EC2 | Not tested | — | |
+| Update - Multicloud inventory hosts | Not tested | — | |
+| Snapshot - Azure by hostname | Not tested | — | |
+| Snapshot - AWS by hostname | Not tested | — | |
+| Snapshot - Verify | Not tested | — | |
+| Snapshot - Cleanup (optional) | Not tested | — | |
+| Deprovision - Azure VM | Not tested | — | |
+| Deprovision - AWS EC2 | Not tested | — | |
 
 ### Workflows
 
 | Component | Status | Last tested | Notes |
 |---|---|---|---|
-| WF - Demo setup (provision infrastructure) | Pass | 2026-06-13 | |
-| WF - Multicloud snapshot and retention | Pass | 2026-06-15 | All nodes confirmed: snapshot Azure, snapshot AWS, verify, cleanup (count mode) |
-| WF - Demo teardown (destroy infrastructure) | Pass | 2026-06-13 | |
+| WF - Demo setup (provision infrastructure) | Not tested | — | |
+| WF - Multicloud snapshot and retention | Not tested | — | |
+| WF - Demo teardown (destroy infrastructure) | Not tested | — | |
 
 ## Open issues
 

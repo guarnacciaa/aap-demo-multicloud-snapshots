@@ -3,6 +3,18 @@
 # ============================================================================
 # Copy to demo_variables.yml and edit for your environment.
 # demo_variables.yml is gitignored so it is not overwritten on git pull.
+#
+# This file is organized into two scopes, marked by the banners below:
+#   [ALWAYS REQUIRED]  needed in every deployment, regardless of mode.
+#   [LAB/DEV ONLY]      consumed exclusively by the Provision - */
+#                       Deprovision - * job templates and workflows. SKIP
+#                       these entire sections when demo_manage_infrastructure
+#                       is false (customer/PoC deployment against pre-existing
+#                       infrastructure) — leaving them at their defaults is
+#                       fine, they are simply never used.
+# playbooks/aap_config.yml and playbooks/verify.yml enforce this: the
+# [LAB/DEV ONLY] variables are only validated when demo_manage_infrastructure
+# is true, so a customer/PoC deployment is never blocked by them.
 # ============================================================================
 
 demo_no_log: false
@@ -10,7 +22,24 @@ demo_no_log: false
 # Set to true in production to hide secrets from job output.
 aap_configuration_secure_logging: false
 
-# --- AAP connection ---
+# --- Deployment mode --- [ALWAYS REQUIRED]
+# true (default): lab / dev / self-demo deployment. CasC creates the full
+#   infrastructure lifecycle: Provision - Azure VM, Provision - AWS EC2,
+#   Update - Multicloud inventory hosts, Deprovision - Azure VM,
+#   Deprovision - AWS EC2, plus the WF - Demo setup and WF - Demo teardown
+#   workflows. Use this when there is no pre-existing cloud infrastructure
+#   and you want the demo to create and destroy everything itself. All
+#   [LAB/DEV ONLY] variables below must be set.
+# false: customer / PoC deployment against pre-existing infrastructure. CasC
+#   creates ONLY the snapshot job templates (Snapshot - Azure/AWS by hostname,
+#   Snapshot - Verify, Snapshot - Cleanup) and WF - Multicloud snapshot and
+#   retention. No provisioning or deprovisioning objects are created in AAP at
+#   all, which removes any risk of accidentally launching a job that creates
+#   duplicate cloud resources or deletes the customer's existing networking.
+#   [LAB/DEV ONLY] variables below can be left at their defaults.
+demo_manage_infrastructure: true
+
+# --- AAP connection --- [ALWAYS REQUIRED]
 # controller_username and controller_password live in vault.yml.
 # The dispatch role resolves gateway auth from aap_* -> controller_* fallback.
 aap_hostname: CHANGE_ME
@@ -22,7 +51,7 @@ aap_validate_certs: false
 # Do not use legacy /api/v2/ on the gateway hostname.
 aap_controller_api_prefix: /api/controller/v2
 
-# --- AAP Bearer token (required for AAP 2.5+ Platform Gateway) ---
+# --- AAP Bearer token (required for AAP 2.5+ Platform Gateway) --- [ALWAYS REQUIRED if used]
 # Username/password auth requires a token request to /api/o/token/, which the
 # Platform Gateway does not expose → HTTP 404 on direct ansible.controller calls.
 # Generate a personal access token in the AAP UI: User menu → Tokens → Add,
@@ -33,6 +62,7 @@ aap_controller_api_prefix: /api/controller/v2
 # accessed directly (not through the Platform Gateway).
 # aap_token: "{{ vault_aap_token }}"
 
+# --- AAP object names --- [ALWAYS REQUIRED]
 demo_organization_name: Multicloud Demo
 demo_organization_description: Multicloud snapshot and retention PoC
 demo_project_name: Multicloud Snapshots Demo
@@ -45,13 +75,13 @@ demo_execution_environment_name: ee-multicloud-snapshots
 # Must match the tag used in podman push (see docs/setup.md).
 demo_execution_environment_image: CHANGE_ME/ee-multicloud-snapshots:latest
 
-# Private Automation Hub container registry (for Controller EE image pulls).
+# Private Automation Hub container registry (for Controller EE image pulls). [ALWAYS REQUIRED if using a custom EE]
 # Use the Gateway host or IP without a URL scheme; must match demo_execution_environment_image.
 hub_registry_credential_name: PAH Container Registry
 hub_registry_host: "{{ aap_hostname | regex_replace('^https?://', '') | regex_replace('/$', '') }}"
 
 # ============================================================================
-# Git repository configuration
+# Git repository configuration [ALWAYS REQUIRED]
 # ============================================================================
 # Choose ONE of the following options based on your Git hosting platform:
 #
@@ -69,18 +99,27 @@ demo_project_scm_url: CHANGE_ME_GIT_REPO_URL
 demo_project_scm_branch: main
 
 # ============================================================================
-# Azure settings
+# Azure — target VM identity and credentials [ALWAYS REQUIRED]
 # ============================================================================
+# Consumed by the snapshot job templates in every deployment mode. In
+# customer/PoC mode (demo_manage_infrastructure: false), azure_resource_group
+# and azure_vm_hostname must match the customer's EXISTING VM exactly — the
+# snapshot playbook looks it up by these two values and fails if no VM is found.
 
 azure_subscription_id: CHANGE_ME
 azure_tenant_id: CHANGE_ME
 azure_client_id: "{{ vault_azure_client_id | default('CHANGE_ME') }}"
 azure_client_secret: "{{ vault_azure_client_secret }}"
 azure_resource_group: CHANGE_ME
-azure_location: eastus
-
-# --- Azure VM provisioning ---
 azure_vm_hostname: azure-demo-vm01
+
+# ============================================================================
+# Azure — VM provisioning and networking [LAB/DEV ONLY]
+# Consumed exclusively by Provision - Azure VM / Deprovision - Azure VM.
+# Leave at defaults when demo_manage_infrastructure: false; they are unused.
+# ============================================================================
+
+azure_location: eastus
 azure_vm_size: Standard_B2s
 azure_vm_admin_user: azureuser
 azure_vm_admin_password: "{{ vault_azure_vm_admin_password }}"
@@ -89,8 +128,6 @@ azure_vm_image:
   offer: RHEL
   sku: "9_4"
   version: latest
-
-# --- Azure networking ---
 azure_vnet_name: demo-multicloud-vnet
 azure_vnet_cidr: "10.0.0.0/16"
 azure_subnet_name: demo-multicloud-subnet
@@ -98,15 +135,25 @@ azure_subnet_cidr: "10.0.1.0/24"
 azure_nsg_name: demo-multicloud-nsg
 
 # ============================================================================
-# AWS settings
+# AWS — target instance identity and credentials [ALWAYS REQUIRED]
 # ============================================================================
+# Consumed by the snapshot job templates in every deployment mode. In
+# customer/PoC mode (demo_manage_infrastructure: false), aws_ec2_hostname must
+# match the EXISTING instance's "Name" tag exactly, and aws_region must match
+# where it runs — the snapshot playbook filters on tag:Name and fails if no
+# running instance is found.
 
 aws_region: us-east-1
 aws_access_key: "{{ vault_aws_access_key | default('CHANGE_ME') }}"
 aws_secret_key: "{{ vault_aws_secret_key }}"
-
-# --- AWS EC2 provisioning ---
 aws_ec2_hostname: aws-demo-vm01
+
+# ============================================================================
+# AWS — instance provisioning and networking [LAB/DEV ONLY]
+# Consumed exclusively by Provision - AWS EC2 / Deprovision - AWS EC2.
+# Leave at defaults when demo_manage_infrastructure: false; they are unused.
+# ============================================================================
+
 aws_instance_type: t3.small
 # AMI IDs are region-specific. Find the correct ID for your region at:
 # https://access.redhat.com/solutions/15356 or the AWS EC2 console (Images > AMIs).
@@ -116,8 +163,6 @@ aws_instance_type: t3.small
 #   RHEL 10 - eu-north-1: ami-0754facaaac92a5bb
 aws_ami_id: CHANGE_ME
 aws_key_pair_name: demo-multicloud-keypair
-
-# --- AWS networking ---
 aws_vpc_name: demo-multicloud-vpc
 aws_vpc_cidr: "10.1.0.0/16"
 aws_subnet_name: demo-multicloud-subnet
@@ -125,7 +170,7 @@ aws_subnet_cidr: "10.1.1.0/24"
 aws_sg_name: demo-multicloud-sg
 
 # ============================================================================
-# Snapshot policy
+# Snapshot policy [ALWAYS REQUIRED]
 # ============================================================================
 
 # Set to true to enable the cleanup job template; false prevents any deletion.
@@ -153,7 +198,7 @@ snapshot_retention_days: 30
 snapshot_retention_count: 1
 
 # ============================================================================
-# Credential names (must match credentials.yml)
+# Credential names (must match credentials.yml) [ALWAYS REQUIRED]
 # ============================================================================
 
 azure_credential_name: Azure Service Principal

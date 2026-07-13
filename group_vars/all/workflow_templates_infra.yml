@@ -1,0 +1,79 @@
+---
+# Infrastructure lifecycle workflows: only merged into controller_workflows
+# (see playbooks/aap_config.yml pre_tasks) when demo_manage_infrastructure is
+# true. They provision or destroy cloud VMs and networking from scratch, so
+# they must not exist in AAP for customer/PoC deployments that reuse existing
+# infrastructure (see docs/setup.md).
+#
+# Kept under a separate var name (controller_workflows_infra) so group_vars
+# auto-loading this file does not unconditionally add these workflows to the
+# main controller_workflows list; the merge is opt-in via the flag.
+controller_workflows_infra:
+  # --- Infrastructure setup workflow ---
+  - name: WF - Demo setup (provision infrastructure)
+    description: >-
+      Provision Azure VM and AWS EC2 instance with networking.
+      Run this before the snapshot demo workflow.
+    organization: "{{ demo_organization_name }}"
+    labels:
+      - "{{ demo_label_name }}"
+    state: present
+    simplified_workflow_nodes:
+      # Scoping by organization prevents lookup failures when a same-named template
+      # exists outside this org (e.g. an orphan from a prior incomplete run).
+      - identifier: provision_azure
+        unified_job_template: Provision - Azure VM
+        organization: "{{ demo_organization_name }}"
+        success_nodes:
+          - update_inventory_hosts
+        failure_nodes: []
+        always_nodes: []
+      - identifier: provision_aws
+        unified_job_template: Provision - AWS EC2
+        organization: "{{ demo_organization_name }}"
+        success_nodes:
+          - update_inventory_hosts
+        failure_nodes: []
+        always_nodes: []
+      - identifier: update_inventory_hosts
+        unified_job_template: Update - Multicloud inventory hosts
+        organization: "{{ demo_organization_name }}"
+        success_nodes: []
+        failure_nodes: []
+        always_nodes: []
+
+  # --- Full teardown workflow ---
+  - name: WF - Demo teardown (destroy infrastructure)
+    description: >-
+      Clean up snapshots and destroy all demo infrastructure (Azure VM,
+      AWS EC2, networking). Run after the demo is complete.
+    organization: "{{ demo_organization_name }}"
+    labels:
+      - "{{ demo_label_name }}"
+    state: present
+    simplified_workflow_nodes:
+      - identifier: cleanup_snapshots
+        unified_job_template: Snapshot - Cleanup (optional)
+        organization: "{{ demo_organization_name }}"
+        # Force a full snapshot purge during teardown: enable cleanup and set
+        # retention to 0 days so every snapshot is removed regardless of age.
+        extra_data:
+          enable_snapshot_cleanup: true
+          snapshot_retention_days: 0
+        success_nodes:
+          - deprovision_azure
+          - deprovision_aws
+        failure_nodes: []
+        always_nodes: []
+      - identifier: deprovision_azure
+        unified_job_template: Deprovision - Azure VM
+        organization: "{{ demo_organization_name }}"
+        success_nodes: []
+        failure_nodes: []
+        always_nodes: []
+      - identifier: deprovision_aws
+        unified_job_template: Deprovision - AWS EC2
+        organization: "{{ demo_organization_name }}"
+        success_nodes: []
+        failure_nodes: []
+        always_nodes: []

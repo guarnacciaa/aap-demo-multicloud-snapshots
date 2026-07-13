@@ -1,49 +1,12 @@
 ---
+# Snapshot and retention workflow: always deployed regardless of
+# demo_manage_infrastructure. It only snapshots, verifies, and optionally
+# purges existing VMs/instances; it never touches cloud networking.
+#
 # Dispatch role reads controller_workflows for workflow job templates.
-#
-# Three workflows cover the full demo lifecycle:
-#   1. Setup    — provision infrastructure from scratch (Azure VM + AWS EC2)
-#   2. Demo     — run the multicloud snapshot and retention scenario
-#   3. Teardown — clean up snapshots and destroy all provisioned infrastructure
-#
 # Uses simplified_workflow_nodes (string template names + edge lists) which
 # avoids module-level issues with workflow_nodes / unified_job_template.
-
 controller_workflows:
-  # --- 1. Infrastructure setup workflow ---
-  - name: WF - Demo setup (provision infrastructure)
-    description: >-
-      Provision Azure VM and AWS EC2 instance with networking.
-      Run this before the snapshot demo workflow.
-    organization: "{{ demo_organization_name }}"
-    labels:
-      - "{{ demo_label_name }}"
-    state: present
-    simplified_workflow_nodes:
-      # Scoping by organization prevents lookup failures when a same-named template
-      # exists outside this org (e.g. an orphan from a prior incomplete run).
-      - identifier: provision_azure
-        unified_job_template: Provision - Azure VM
-        organization: "{{ demo_organization_name }}"
-        success_nodes:
-          - update_inventory_hosts
-        failure_nodes: []
-        always_nodes: []
-      - identifier: provision_aws
-        unified_job_template: Provision - AWS EC2
-        organization: "{{ demo_organization_name }}"
-        success_nodes:
-          - update_inventory_hosts
-        failure_nodes: []
-        always_nodes: []
-      - identifier: update_inventory_hosts
-        unified_job_template: Update - Multicloud inventory hosts
-        organization: "{{ demo_organization_name }}"
-        success_nodes: []
-        failure_nodes: []
-        always_nodes: []
-
-  # --- 2. Snapshot and retention demo workflow ---
   - name: WF - Multicloud snapshot and retention
     description: Snapshot Azure and AWS VMs by hostname, verify, optionally purge old snapshots.
     organization: "{{ demo_organization_name }}"
@@ -74,42 +37,6 @@ controller_workflows:
         always_nodes: []
       - identifier: cleanup_snapshots
         unified_job_template: Snapshot - Cleanup (optional)
-        organization: "{{ demo_organization_name }}"
-        success_nodes: []
-        failure_nodes: []
-        always_nodes: []
-
-  # --- 3. Full teardown workflow ---
-  - name: WF - Demo teardown (destroy infrastructure)
-    description: >-
-      Clean up snapshots and destroy all demo infrastructure (Azure VM,
-      AWS EC2, networking). Run after the demo is complete.
-    organization: "{{ demo_organization_name }}"
-    labels:
-      - "{{ demo_label_name }}"
-    state: present
-    simplified_workflow_nodes:
-      - identifier: cleanup_snapshots
-        unified_job_template: Snapshot - Cleanup (optional)
-        organization: "{{ demo_organization_name }}"
-        # Force a full snapshot purge during teardown: enable cleanup and set
-        # retention to 0 days so every snapshot is removed regardless of age.
-        extra_data:
-          enable_snapshot_cleanup: true
-          snapshot_retention_days: 0
-        success_nodes:
-          - deprovision_azure
-          - deprovision_aws
-        failure_nodes: []
-        always_nodes: []
-      - identifier: deprovision_azure
-        unified_job_template: Deprovision - Azure VM
-        organization: "{{ demo_organization_name }}"
-        success_nodes: []
-        failure_nodes: []
-        always_nodes: []
-      - identifier: deprovision_aws
-        unified_job_template: Deprovision - AWS EC2
         organization: "{{ demo_organization_name }}"
         success_nodes: []
         failure_nodes: []

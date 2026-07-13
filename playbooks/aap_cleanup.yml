@@ -7,7 +7,11 @@
 # labels; they are removed automatically when the organization is deleted.
 #
 # Each task uses ignore_errors so the playbook completes even if an object
-# was already removed or was never created.
+# was already removed or was never created. This also makes cleanup safe
+# regardless of demo_manage_infrastructure: the loops below always include the
+# provisioning/teardown job and workflow template names, which simply do not
+# exist (and are skipped via ignore_errors) when the demo was deployed with
+# demo_manage_infrastructure: false.
 ---
 - name: Cleanup multicloud snapshots demo from AAP
   hosts: localhost

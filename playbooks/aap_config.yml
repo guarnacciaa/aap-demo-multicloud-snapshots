@@ -27,6 +27,65 @@
           and controller credentials in vault.yml before running CasC.
       tags:
         - always
+
+    # These identify the target VM/instance for the snapshot job templates,
+    # which run in every deployment mode. In customer/PoC mode they must match
+    # the customer's EXISTING VM/instance exactly (see docs/setup.md).
+    - name: Validate core VM/instance identity variables required in every mode
+      ansible.builtin.assert:
+        that:
+          - azure_resource_group is defined
+          - azure_resource_group != "CHANGE_ME"
+          - azure_vm_hostname is defined
+          - aws_ec2_hostname is defined
+          - aws_region is defined
+        fail_msg: >-
+          Set azure_resource_group, azure_vm_hostname, aws_ec2_hostname, and
+          aws_region in demo_variables.yml. These identify the target VM/
+          instance for snapshots and are required in every deployment mode
+          (see the [ALWAYS REQUIRED] sections in demo_variables.yml.example).
+      tags:
+        - always
+
+    # Only enforced in lab/dev mode: these variables are exclusively consumed
+    # by Provision - */Deprovision - * (see [LAB/DEV ONLY] sections in
+    # demo_variables.yml.example) and are never read when
+    # demo_manage_infrastructure is false, so a customer/PoC deployment is
+    # never blocked by leaving them at their example defaults.
+    - name: Validate lab/dev infrastructure provisioning variables
+      ansible.builtin.assert:
+        that:
+          - azure_location is defined
+          - azure_vm_size is defined
+          - azure_vm_admin_user is defined
+          - aws_instance_type is defined
+          - aws_ami_id is defined
+          - aws_ami_id != "CHANGE_ME"
+        fail_msg: >-
+          demo_manage_infrastructure is true (lab/dev mode): set the Azure/AWS
+          provisioning variables in demo_variables.yml (see the [LAB/DEV ONLY]
+          sections in demo_variables.yml.example), for example aws_ami_id.
+          If you are deploying against a customer's pre-existing
+          infrastructure, set demo_manage_infrastructure: false instead.
+      when: demo_manage_infrastructure | default(true) | bool
+      tags:
+        - always
+
+    # demo_manage_infrastructure=true (lab/dev): merge in the provisioning and
+    # teardown job/workflow templates from job_templates_infra.yml and
+    # workflow_templates_infra.yml. When false (customer/PoC deployment on
+    # pre-existing infrastructure), controller_templates and
+    # controller_workflows keep only the snapshot-related objects defined in
+    # job_templates.yml / workflow_templates.yml, so AAP never gets objects
+    # capable of creating or destroying cloud networking/VMs.
+    - name: Merge infrastructure lifecycle job and workflow templates in lab/dev mode
+      ansible.builtin.set_fact:
+        controller_templates: "{{ controller_templates + controller_templates_infra }}"
+        controller_workflows: "{{ controller_workflows + controller_workflows_infra }}"
+      when: demo_manage_infrastructure | default(true) | bool
+      tags:
+        - always
+
   roles:
     # NOTE: infra.aap_configuration is validated content (not certified).
     - role: infra.aap_configuration.dispatch

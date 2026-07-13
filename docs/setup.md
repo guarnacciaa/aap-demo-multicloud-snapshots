@@ -1,5 +1,42 @@
 # Environment setup
 
+## Deployment mode: lab/dev vs customer/PoC
+
+Set `demo_manage_infrastructure` in `group_vars/all/demo_variables.yml` **before** running `aap_config.yml`:
+
+| `demo_manage_infrastructure` | Scenario | What CasC creates |
+|---|---|---|
+| `true` (default) | Lab, dev, or self-running the full demo; no pre-existing Azure VM / AWS EC2 instance | Provisioning (`Provision - *`), inventory sync (`Update - Multicloud inventory hosts`), teardown (`Deprovision - *`) job templates, `WF - Demo setup`, `WF - Demo teardown`, plus all snapshot objects |
+| `false` | Deploying at a customer site where the VM/instance and its networking already exist | Only the snapshot job templates (`Snapshot - Azure/AWS by hostname`, `Snapshot - Verify`, `Snapshot - Cleanup (optional)`) and `WF - Multicloud snapshot and retention` |
+
+The flag is read in `playbooks/aap_config.yml`: when `true`, the objects defined in `group_vars/all/job_templates_infra.yml` and `group_vars/all/workflow_templates_infra.yml` are merged into the lists the `infra.aap_configuration` dispatch role applies; when `false`, those two files are still loaded (Ansible auto-loads every file under `group_vars/all/`) but never merged in, so their objects are never created in AAP.
+
+### Which variables to set in each mode
+
+`group_vars/all/demo_variables.yml.example` groups every variable under a banner:
+
+- **`[ALWAYS REQUIRED]`** — needed regardless of mode: AAP connection, object names, Git repo, snapshot policy, credential names, and the target VM/instance identity (`azure_resource_group`, `azure_vm_hostname`, `aws_ec2_hostname`, `aws_region`).
+- **`[LAB/DEV ONLY]`** — consumed exclusively by `Provision - *` / `Deprovision - *` (VM size, admin user/password, image, VNet/VPC/subnet/NSG/SG names and CIDRs, AMI ID, key pair). Leave these at their example defaults in customer/PoC mode; they are never read.
+
+Both `playbooks/aap_config.yml` (pre-task assertions) and `playbooks/verify.yml` enforce this split: the `[LAB/DEV ONLY]` checks only run `when: demo_manage_infrastructure | bool`, so a customer/PoC deployment fails fast only on the variables it actually needs, never on unrelated provisioning variables.
+
+When `demo_manage_infrastructure: false`:
+
+- Set `azure_vm_hostname` / `azure_resource_group` to the customer's existing VM name and resource group.
+- Set `aws_ec2_hostname` / `aws_region` to the customer's existing EC2 instance name (must match its `Name` tag, since the snapshot playbook filters on `tag:Name`) and region.
+- Request Azure/AWS credentials scoped to **read + snapshot only** (see [Reduced credential scope for customer/PoC mode](#reduced-credential-scope-for-customer-poc-mode) below) — the full provisioning permissions in [Azure prerequisites](#azure-prerequisites) and [AWS prerequisites](#aws-prerequisites) are not needed since no provisioning/deprovisioning job template exists to use them.
+- You do not need `vault_azure_vm_admin_password`; it is only consumed by `provision_azure_vm.yml`.
+- Switching modes later: change the flag and re-run `ansible-playbook playbooks/aap_config.yml --vault-id @prompt`. Going from `true` to `false` does **not** remove the infra job/workflow templates already created in AAP (dispatch only reconciles objects it is told about); delete them explicitly with `ansible-playbook playbooks/aap_cleanup.yml -e demo_cleanup_confirm=true --vault-id @prompt` and re-apply, or delete them manually from the Controller UI.
+
+### Reduced credential scope for customer/PoC mode
+
+When `demo_manage_infrastructure: false`, request credentials limited to:
+
+- **Azure Service Principal**: `Microsoft.Compute/virtualMachines/read`, `Microsoft.Compute/disks/read`, `Microsoft.Compute/snapshots/read`, `Microsoft.Compute/snapshots/write`, `Microsoft.Compute/snapshots/delete` on the resource group containing the existing VM.
+- **AWS IAM user or role**: `ec2:DescribeInstances`, `ec2:CreateSnapshot`, `ec2:DescribeSnapshots`, `ec2:DeleteSnapshot`, `ec2:CreateTags`.
+
+Do not request the VPC/VNet/subnet/NSG/security group/route table/internet gateway create-delete permissions listed below; they are only used by the provisioning and teardown playbooks, which are not deployed in this mode.
+
 ## Requirements
 
 | Component | Version / detail |

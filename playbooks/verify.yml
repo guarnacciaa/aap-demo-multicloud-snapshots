@@ -19,26 +19,40 @@
       tags:
         - verify
 
-    - name: Confirm Azure variables for provisioning and snapshots
+    # Required in every deployment mode: the snapshot job templates look up
+    # the target VM/instance by these values (see the [ALWAYS REQUIRED]
+    # sections in demo_variables.yml.example).
+    - name: Confirm Azure/AWS target identity variables (required in every mode)
       ansible.builtin.assert:
         that:
           - azure_resource_group is defined
           - azure_vm_hostname is defined
-          - azure_location is defined
-          - azure_vm_size is defined
-          - azure_vm_admin_user is defined
-        fail_msg: Azure provisioning variables are incomplete. Check demo_variables.yml.
+          - aws_ec2_hostname is defined
+          - aws_region is defined
+        fail_msg: >-
+          Azure/AWS target VM identity variables are incomplete. Check
+          demo_variables.yml (azure_resource_group, azure_vm_hostname,
+          aws_ec2_hostname, aws_region).
       tags:
         - verify
 
-    - name: Confirm AWS variables for provisioning and snapshots
+    # Only required in lab/dev mode (demo_manage_infrastructure: true); these
+    # variables are exclusively consumed by Provision - */Deprovision - * (see
+    # the [LAB/DEV ONLY] sections in demo_variables.yml.example) and are never
+    # read in customer/PoC mode, so this check is skipped when the flag is false.
+    - name: Confirm Azure/AWS provisioning variables (lab/dev mode only)
       ansible.builtin.assert:
         that:
-          - aws_ec2_hostname is defined
-          - aws_region is defined
+          - azure_location is defined
+          - azure_vm_size is defined
+          - azure_vm_admin_user is defined
           - aws_ami_id is defined
           - aws_instance_type is defined
-        fail_msg: AWS provisioning variables are incomplete. Check demo_variables.yml.
+        fail_msg: >-
+          Azure/AWS provisioning variables are incomplete. Check
+          demo_variables.yml, or set demo_manage_infrastructure: false if you
+          are deploying against pre-existing customer infrastructure.
+      when: demo_manage_infrastructure | default(true) | bool
       tags:
         - verify
 
@@ -72,7 +86,9 @@
     - name: Report verification status
       ansible.builtin.debug:
         msg: >-
-          Prerequisite checks passed. Run the setup workflow to provision
-          infrastructure, then launch the snapshot workflow.
+          Prerequisite checks passed.
+          {{ 'Run WF - Demo setup to provision infrastructure, then launch WF - Multicloud snapshot and retention.'
+             if (demo_manage_infrastructure | default(true) | bool)
+             else 'demo_manage_infrastructure is false: launch WF - Multicloud snapshot and retention directly against the existing VM/instance.' }}
       tags:
         - verify
