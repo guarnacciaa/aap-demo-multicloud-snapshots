@@ -43,11 +43,19 @@ target AAP's catalog at all — not just be conditionally skipped at runtime.
      lists with `ansible.builtin.set_fact` gated by
      `when: demo_manage_infrastructure | default(true) | bool`.
 
-3. **Label every variable** in `demo_variables.yml.example` with a
-   `[ALWAYS REQUIRED]` or `[LAB/DEV ONLY]` banner so the two scopes are
-   visible at a glance, without physically splitting the file (this preserves
-   the standard single-file `cp demo_variables.yml.example demo_variables.yml`
-   workflow).
+3. **Label every variable** in `demo_variables.yml.example` **and
+   `vault.yml.example`** with a `[ALWAYS REQUIRED]` or `[LAB/DEV ONLY]`
+   banner so the two scopes are visible at a glance, without physically
+   splitting either file (this preserves the standard single-file
+   `cp demo_variables.yml.example demo_variables.yml` workflow, and keeps
+   `vault.yml.example` a single file that gets copied and encrypted with
+   `ansible-vault encrypt vault.yml`).
+   - In `vault.yml.example`, a secret is `[LAB/DEV ONLY]` only when it is
+     consumed exclusively by the provisioning/teardown playbooks (e.g. a VM
+     admin password used only when creating a VM from scratch).
+   - A secret stays `[ALWAYS REQUIRED]` when the scenario job templates also
+     need it in customer/PoC mode (e.g. the cloud SP/IAM credential used to
+     look up a pre-existing VM or instance).
 
 4. **Mode-aware `assert` validation**, duplicated in both `aap_config.yml`
    pre_tasks and `verify.yml`:
@@ -61,9 +69,10 @@ target AAP's catalog at all — not just be conditionally skipped at runtime.
 
 5. **Document the flag** in `README.md` (a "Deployment modes" section with a
    comparison table, plus mode annotations on the job/workflow template
-   tables) and in `docs/setup.md` (which variables apply to each mode, and the
-   reduced credential/IAM permission set needed in customer/PoC mode since the
-   create/delete infrastructure permissions go unused).
+   tables) and in `docs/setup.md` (which variables and secrets apply to each
+   mode, and the reduced credential/IAM permission set needed in
+   customer/PoC mode since the create/delete infrastructure permissions and
+   `[LAB/DEV ONLY]` vault secrets go unused).
 
 6. **Leave `aap_cleanup.yml` unconditional.** Its deletion loops already use
    `ignore_errors: true`; keep listing every object name regardless of mode so
@@ -75,7 +84,7 @@ target AAP's catalog at all — not just be conditionally skipped at runtime.
 - [ ] `demo_manage_infrastructure` exists, defaults to `true`, documented with both scenarios in its comment block
 - [ ] Core vs `_infra` CasC file split with the naming convention above
 - [ ] `aap_config.yml` merges `_infra` lists conditionally
-- [ ] `demo_variables.yml.example` fully banner-labeled
+- [ ] `demo_variables.yml.example` and `vault.yml.example` fully banner-labeled
 - [ ] Mode-aware asserts in both `aap_config.yml` and `verify.yml`
 - [ ] README "Deployment modes" section + table annotations
 - [ ] `docs/setup.md` variable-scope and credential-scope guidance for customer/PoC mode

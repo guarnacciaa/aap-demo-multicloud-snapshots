@@ -13,10 +13,10 @@ The flag is read in `playbooks/aap_config.yml`: when `true`, the objects defined
 
 ### Which variables to set in each mode
 
-`group_vars/all/demo_variables.yml.example` groups every variable under a banner:
+`group_vars/all/demo_variables.yml.example` **and** `vault.yml.example` group every variable/secret under the same banner:
 
-- **`[ALWAYS REQUIRED]`** — needed regardless of mode: AAP connection, object names, Git repo, snapshot policy, credential names, and the target VM/instance identity (`azure_resource_group`, `azure_vm_hostname`, `aws_ec2_hostname`, `aws_region`).
-- **`[LAB/DEV ONLY]`** — consumed exclusively by `Provision - *` / `Deprovision - *` (VM size, admin user/password, image, VNet/VPC/subnet/NSG/SG names and CIDRs, AMI ID, key pair). Leave these at their example defaults in customer/PoC mode; they are never read.
+- **`[ALWAYS REQUIRED]`** — needed regardless of mode: AAP connection, object names, Git repo, snapshot policy, credential names, the target VM/instance identity (`azure_resource_group`, `azure_vm_hostname`, `aws_ec2_hostname`, `aws_region`), and the Azure/AWS credential secrets (`vault_azure_client_id`, `vault_azure_client_secret`, `vault_aws_access_key`, `vault_aws_secret_key`) — the snapshot job templates authenticate against Azure/AWS in both modes.
+- **`[LAB/DEV ONLY]`** — consumed exclusively by `Provision - *` / `Deprovision - *`: VM size, admin user/password, image, VNet/VPC/subnet/NSG/SG names and CIDRs, AMI ID, key pair in `demo_variables.yml.example`, plus `vault_azure_vm_admin_password` in `vault.yml.example`. Leave these at their example defaults in customer/PoC mode; they are never read.
 
 Both `playbooks/aap_config.yml` (pre-task assertions) and `playbooks/verify.yml` enforce this split: the `[LAB/DEV ONLY]` checks only run `when: demo_manage_infrastructure | bool`, so a customer/PoC deployment fails fast only on the variables it actually needs, never on unrelated provisioning variables.
 
@@ -25,7 +25,7 @@ When `demo_manage_infrastructure: false`:
 - Set `azure_vm_hostname` / `azure_resource_group` to the customer's existing VM name and resource group.
 - Set `aws_ec2_hostname` / `aws_region` to the customer's existing EC2 instance name (must match its `Name` tag, since the snapshot playbook filters on `tag:Name`) and region.
 - Request Azure/AWS credentials scoped to **read + snapshot only** (see [Reduced credential scope for customer/PoC mode](#reduced-credential-scope-for-customer-poc-mode) below) — the full provisioning permissions in [Azure prerequisites](#azure-prerequisites) and [AWS prerequisites](#aws-prerequisites) are not needed since no provisioning/deprovisioning job template exists to use them.
-- You do not need `vault_azure_vm_admin_password`; it is only consumed by `provision_azure_vm.yml`.
+- You do not need `vault_azure_vm_admin_password`; it is `[LAB/DEV ONLY]` in `vault.yml.example` and only consumed by `provision_azure_vm.yml`.
 - Switching modes later: change the flag and re-run `ansible-playbook playbooks/aap_config.yml --vault-id @prompt`. Going from `true` to `false` does **not** remove the infra job/workflow templates already created in AAP (dispatch only reconciles objects it is told about); delete them explicitly with `ansible-playbook playbooks/aap_cleanup.yml -e demo_cleanup_confirm=true --vault-id @prompt` and re-apply, or delete them manually from the Controller UI.
 
 ### Reduced credential scope for customer/PoC mode
@@ -101,14 +101,14 @@ Edit `group_vars/all/demo_variables.yml` with:
 
 Store these secrets in `vault.yml`:
 
-| Vault variable | Purpose |
-|---|---|
-| `vault_controller_password` | AAP admin password |
-| `vault_azure_client_id` | Azure Service Principal client (application) ID |
-| `vault_azure_client_secret` | Azure Service Principal client secret |
-| `vault_azure_vm_admin_password` | Azure VM admin password (set during provisioning) |
-| `vault_aws_access_key` | AWS IAM access key ID |
-| `vault_aws_secret_key` | AWS IAM secret access key |
+| Vault variable | Purpose | Mode |
+|---|---|---|
+| `vault_controller_password` | AAP admin password | `[ALWAYS REQUIRED]` |
+| `vault_azure_client_id` | Azure Service Principal client (application) ID | `[ALWAYS REQUIRED]` |
+| `vault_azure_client_secret` | Azure Service Principal client secret | `[ALWAYS REQUIRED]` |
+| `vault_azure_vm_admin_password` | Azure VM admin password (set during provisioning) | `[LAB/DEV ONLY]` |
+| `vault_aws_access_key` | AWS IAM access key ID | `[ALWAYS REQUIRED]` |
+| `vault_aws_secret_key` | AWS IAM secret access key | `[ALWAYS REQUIRED]` |
 
 ## Custom Execution Environment (optional)
 

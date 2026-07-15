@@ -47,7 +47,7 @@ Phases 1 and 3 only exist when `demo_manage_infrastructure: true` (default); see
 
 In customer mode, set `azure_vm_hostname` / `azure_resource_group` and `aws_ec2_hostname` / `aws_region` to the customer's existing VM/instance, and scope the Azure/AWS credentials down to read + snapshot permissions only (see [docs/setup.md](docs/setup.md)).
 
-`group_vars/all/demo_variables.yml.example` marks every variable with `[ALWAYS REQUIRED]` or `[LAB/DEV ONLY]` banners so you can see at a glance what customer/PoC mode needs. `playbooks/aap_config.yml` and `playbooks/verify.yml` enforce this: the `[LAB/DEV ONLY]` variables are only validated when `demo_manage_infrastructure: true`, so leaving them at their example defaults never blocks a customer/PoC deployment.
+`group_vars/all/demo_variables.yml.example` **and** `vault.yml.example` mark every variable/secret with `[ALWAYS REQUIRED]` or `[LAB/DEV ONLY]` banners so you can see at a glance what customer/PoC mode needs. `playbooks/aap_config.yml` and `playbooks/verify.yml` enforce this: the `[LAB/DEV ONLY]` variables are only validated when `demo_manage_infrastructure: true`, so leaving them at their example defaults never blocks a customer/PoC deployment.
 
 ## Quick start
 

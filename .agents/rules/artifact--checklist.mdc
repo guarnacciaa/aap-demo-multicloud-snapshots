@@ -15,7 +15,7 @@ alwaysApply: true
 - [ ] **Roles** (if any): init under **`roles/<role-name>/`**; **`tasks/main.yml`** as entry with included task files; documented **`defaults/`**; internal constants in **`vars/`**; **`meta/main.yml`** with dependencies; secrets only via vault — per **`artifact--roles.mdc`**
 - [ ] **`artifact--code-comments.mdc`** standards applied; playbooks and tasks documented per that rule
 - [ ] Every supporting dependency has setup/teardown playbooks, job templates, and a dual-mode flag where applicable — per **`artifact--self-sufficiency.mdc`**
-- [ ] If the artifact provisions and tears down infrastructure, a `demo_manage_infrastructure` flag gates the CasC infra objects, with mode-aware variable banners and assertions — per **`artifact--demo-deployment-modes.mdc`**
+- [ ] If the artifact provisions and tears down infrastructure, a `demo_manage_infrastructure` flag gates the CasC infra objects, with mode-aware variable/secret banners (in both `demo_variables.yml.example` and `vault.yml.example`) and assertions — per **`artifact--demo-deployment-modes.mdc`**
 - [ ] **`docs/testing.md`** exists and its status summary reflects the current tested state — per **`artifact--testing-log.mdc`**
 - [ ] **`vault.yml.example`** follows the standard naming, structure, and content-split rules — per **`artifact--vault-naming.mdc`**
 - [ ] **`demo_variables.yml.example`** follows the standard section order and prefix conventions — per **`artifact--demo-variables.mdc`**
