@@ -108,7 +108,7 @@ demo_project_scm_branch: main
 
 azure_subscription_id: CHANGE_ME
 azure_tenant_id: CHANGE_ME
-azure_client_id: "{{ vault_azure_client_id | default('CHANGE_ME') }}"
+azure_client_id: "{{ vault_azure_client_id }}"
 azure_client_secret: "{{ vault_azure_client_secret }}"
 azure_resource_group: CHANGE_ME
 azure_vm_hostname: azure-demo-vm01
@@ -144,7 +144,7 @@ azure_nsg_name: demo-multicloud-nsg
 # running instance is found.
 
 aws_region: us-east-1
-aws_access_key: "{{ vault_aws_access_key | default('CHANGE_ME') }}"
+aws_access_key: "{{ vault_aws_access_key }}"
 aws_secret_key: "{{ vault_aws_secret_key }}"
 aws_ec2_hostname: aws-demo-vm01
 

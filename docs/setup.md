@@ -104,8 +104,10 @@ Store these secrets in `vault.yml`:
 | Vault variable | Purpose |
 |---|---|
 | `vault_controller_password` | AAP admin password |
+| `vault_azure_client_id` | Azure Service Principal client (application) ID |
 | `vault_azure_client_secret` | Azure Service Principal client secret |
 | `vault_azure_vm_admin_password` | Azure VM admin password (set during provisioning) |
+| `vault_aws_access_key` | AWS IAM access key ID |
 | `vault_aws_secret_key` | AWS IAM secret access key |
 
 ## Custom Execution Environment (optional)

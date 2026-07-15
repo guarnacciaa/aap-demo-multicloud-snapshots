@@ -1,11 +1,11 @@
 ---
-description: Mandatory inline comments for AAP demo artifacts (playbooks, tasks, complex logic). Copy into .cursor/rules/ when scaffolding; use alwaysApply true when this folder is its own workspace. Part of the artifact--* rule set.
+description: Mandatory inline comments for AAP demo artifacts (playbooks, tasks, complex logic). Copy into .agents/rules/ when scaffolding; use alwaysApply true when this folder is its own workspace. Part of the artifact--* rule set.
 alwaysApply: true
 ---
 
 # Scope
 
-These standards apply to **every** generated **demo** under **`artifacts/demos/aap-demo-*/`**, alongside the other **`artifact--*`** rules in this **`.cursor/rules/`** directory. **Language** for comments and task names: **`all--english-content.mdc`** here as well.
+These standards apply to **every** generated **demo** under **`artifacts/demos/aap-demo-*/`**, alongside the other **`artifact--*`** rules in this **`.agents/rules/`** directory. **Language** for comments and task names: **`all--english-content.mdc`** here as well.
 
 # Playbooks
 
@@ -50,4 +50,4 @@ When the automation uses **`when`** / **`until`** and **`retries`**, **`block`**
 - [ ] Blocks, conditionals, loops, retries, and imperative workarounds document **decision points**
 - [ ] Roles and handlers follow the same rules; CasC/var files use section or key comments where helpful
 
-**Workbench sync**: The same body is maintained as **`artifact--code-comments.mdc`** with frontmatter `globs: artifacts/**` and `alwaysApply: true` when the whole **aap-workbench** workspace is open.
+**Workbench sync**: The same body is maintained as **`artifact--code-comments.mdc`** with frontmatter `globs: artifacts/**` and `alwaysApply: false` when the whole **aap-workbench** workspace is open.
