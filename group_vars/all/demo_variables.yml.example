@@ -106,8 +106,24 @@ demo_project_scm_branch: main
 # and azure_vm_hostname must match the customer's EXISTING VM exactly — the
 # snapshot playbook looks it up by these two values and fails if no VM is found.
 
+# Authentication mode for every azure.azcollection task (snapshot, provisioning,
+# and teardown playbooks). Two values:
+#   service_principal (default): client_id + client_secret + tenant_id
+#     (below) are injected via the "Azure Service Principal" AAP credential.
+#     Works regardless of where AAP itself is hosted — the correct choice for
+#     customer/PoC deployments and the only choice if AAP does not run on Azure.
+#   msi: Managed Identity, no client secret stored anywhere. Requires the AAP
+#     execution node/EE container that runs the job to itself be an Azure
+#     resource (VM, VMSS, AKS node, etc.) with a system- or user-assigned
+#     identity enabled and the same RBAC role granted (see docs/setup.md).
+#     Playbooks pass auth_source: msi on every azure_rm_* task when this is
+#     set; azure_client_id/azure_client_secret are then unused (leave the
+#     vault entries at CHANGE_ME).
+azure_auth_mode: service_principal
+
 azure_subscription_id: CHANGE_ME
 azure_tenant_id: CHANGE_ME
+# Only used when azure_auth_mode: service_principal (see above).
 azure_client_id: "{{ vault_azure_client_id }}"
 azure_client_secret: "{{ vault_azure_client_secret }}"
 azure_resource_group: CHANGE_ME

@@ -58,4 +58,4 @@ Tracks testing progress for this demo. Update after each session. For procedural
 
 ## Open issues
 
-- None
+- `azure_auth_mode: msi` (Managed Identity authentication, added to support running Azure tasks without a stored client secret) is implemented in every `azure_rm_*` task via `auth_source` but has not been exercised end-to-end. It requires an AAP execution node/EE container running on an Azure resource with an identity attached, which was not available at implementation time. The default `service_principal` path is unaffected (same behavior as before this change) but is also still `Not tested` per the table above.

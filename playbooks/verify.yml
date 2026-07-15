@@ -36,6 +36,34 @@
       tags:
         - verify
 
+    # azure_auth_mode is orthogonal to demo_manage_infrastructure: it applies
+    # to the snapshot playbooks in every mode (see demo_variables.yml.example).
+    - name: Confirm azure_auth_mode is a supported value
+      ansible.builtin.assert:
+        that:
+          - azure_auth_mode | default('service_principal') in ['service_principal', 'msi']
+        fail_msg: >-
+          azure_auth_mode must be "service_principal" or "msi" in demo_variables.yml.
+      tags:
+        - verify
+
+    # Only required when azure_auth_mode is the default (service_principal);
+    # unused and therefore never checked with Managed Identity (azure_auth_mode: msi).
+    - name: Confirm Azure Service Principal secrets when azure_auth_mode is service_principal
+      ansible.builtin.assert:
+        that:
+          - azure_client_id is defined
+          - azure_client_id != "CHANGE_ME"
+          - azure_client_secret is defined
+          - azure_client_secret != "CHANGE_ME"
+        fail_msg: >-
+          Set vault_azure_client_id and vault_azure_client_secret in vault.yml,
+          or set azure_auth_mode: msi in demo_variables.yml if AAP's execution
+          nodes run on Azure with a Managed Identity attached.
+      when: azure_auth_mode | default('service_principal') == 'service_principal'
+      tags:
+        - verify
+
     # Only required in lab/dev mode (demo_manage_infrastructure: true); these
     # variables are exclusively consumed by Provision - */Deprovision - * (see
     # the [LAB/DEV ONLY] sections in demo_variables.yml.example) and are never

@@ -15,7 +15,7 @@ The flag is read in `playbooks/aap_config.yml`: when `true`, the objects defined
 
 `group_vars/all/demo_variables.yml.example` **and** `vault.yml.example` group every variable/secret under the same banner:
 
-- **`[ALWAYS REQUIRED]`** — needed regardless of mode: AAP connection, object names, Git repo, snapshot policy, credential names, the target VM/instance identity (`azure_resource_group`, `azure_vm_hostname`, `aws_ec2_hostname`, `aws_region`), and the Azure/AWS credential secrets (`vault_azure_client_id`, `vault_azure_client_secret`, `vault_aws_access_key`, `vault_aws_secret_key`) — the snapshot job templates authenticate against Azure/AWS in both modes.
+- **`[ALWAYS REQUIRED]`** — needed regardless of mode: AAP connection, object names, Git repo, snapshot policy, credential names, the target VM/instance identity (`azure_resource_group`, `azure_vm_hostname`, `aws_ec2_hostname`, `aws_region`), and the Azure/AWS credential secrets (`vault_azure_client_id`, `vault_azure_client_secret`, `vault_aws_access_key`, `vault_aws_secret_key`) — the snapshot job templates authenticate against Azure/AWS in both modes. The two Azure secrets are further conditional on a second, independent axis: `azure_auth_mode` (see [Azure authentication mode](#azure-authentication-mode-service-principal-vs-managed-identity)) — only required when it is `service_principal` (the default), unused when it is `msi`.
 - **`[LAB/DEV ONLY]`** — consumed exclusively by `Provision - *` / `Deprovision - *`: VM size, admin user/password, image, VNet/VPC/subnet/NSG/SG names and CIDRs, AMI ID, key pair in `demo_variables.yml.example`, plus `vault_azure_vm_admin_password` in `vault.yml.example`. Leave these at their example defaults in customer/PoC mode; they are never read.
 
 Both `playbooks/aap_config.yml` (pre-task assertions) and `playbooks/verify.yml` enforce this split: the `[LAB/DEV ONLY]` checks only run `when: demo_manage_infrastructure | bool`, so a customer/PoC deployment fails fast only on the variables it actually needs, never on unrelated provisioning variables.
@@ -37,6 +37,22 @@ When `demo_manage_infrastructure: false`, request credentials limited to:
 
 Do not request the VPC/VNet/subnet/NSG/security group/route table/internet gateway create-delete permissions listed below; they are only used by the provisioning and teardown playbooks, which are not deployed in this mode.
 
+## Azure authentication mode: Service Principal vs Managed Identity
+
+`azure_auth_mode` in `group_vars/all/demo_variables.yml` (default `service_principal`) controls how every `azure.azcollection` task (snapshot, provisioning, and teardown playbooks) authenticates to Azure. This is independent of `demo_manage_infrastructure` above — it applies to the snapshot playbooks in every deployment mode.
+
+| `azure_auth_mode` | How it authenticates | Requirements |
+|---|---|---|
+| `service_principal` (default) | AAP's "Microsoft Azure Resource Manager" credential injects `AZURE_CLIENT_ID`/`AZURE_SECRET`/`AZURE_TENANT`/`AZURE_SUBSCRIPTION_ID`; playbooks omit `auth_source` so modules use their default `auto` resolution | `vault_azure_client_id` and `vault_azure_client_secret` in `vault.yml`. Works regardless of where AAP is hosted. |
+| `msi` | Every `azure_rm_*` task passes `auth_source: msi` explicitly; no client secret is stored in AAP at all | The AAP execution node or execution environment container that actually runs the job must itself be an Azure resource (VM, VMSS, AKS node, etc.) with a system- or user-assigned Managed Identity enabled, and that identity must hold the same RBAC role documented in [Azure prerequisites](#azure-prerequisites) / [Reduced credential scope for customer/PoC mode](#reduced-credential-scope-for-customer-poc-mode). |
+
+Notes:
+
+- AAP's built-in Azure credential type has **no Managed Identity input field** — it only supports Service Principal or Active Directory user/password. `auth_source: msi` is a capability of the `azure.azcollection` modules themselves, not something the Controller credential injects. The Azure credential is still created in `msi` mode (with only `azure_subscription_id` populated) so job templates keep a stable credential association, but `client`/`secret`/`tenant` are omitted entirely — no secret is ever stored.
+- Choose `msi` only when you know AAP's execution nodes run on Azure infrastructure with an identity attached. In every other topology (on-prem, another cloud, OpenShift not on Azure), `service_principal` is the only option that works.
+- `playbooks/aap_config.yml` and `playbooks/verify.yml` validate `azure_auth_mode` and only require the Service Principal vault secrets when it is set to `service_principal` (the default).
+- Switching modes: change `azure_auth_mode` and re-run `ansible-playbook playbooks/aap_config.yml --vault-id @prompt` to update the Azure credential's stored inputs.
+
 ## Requirements
 
 | Component | Version / detail |
@@ -49,7 +65,7 @@ Do not request the VPC/VNet/subnet/NSG/security group/route table/internet gatew
 
 ## Azure prerequisites
 
-- **Service Principal** with the following permissions (Contributor role on the subscription or resource group scope is sufficient):
+- **Service Principal** (default, `azure_auth_mode: service_principal`) **or Managed Identity** (`azure_auth_mode: msi`, see [Azure authentication mode](#azure-authentication-mode-service-principal-vs-managed-identity)) with the following permissions (Contributor role on the subscription or resource group scope is sufficient):
   - Resource group: create, read, delete
   - Virtual network and subnet: create, read, delete
   - Network security group: create, read, delete
@@ -57,7 +73,7 @@ Do not request the VPC/VNet/subnet/NSG/security group/route table/internet gatew
   - Network interface: create, read, delete
   - Virtual machine: create, read, delete
   - Managed disk and snapshot: create, read, delete
-- Note the **subscription ID**, **tenant ID**, **client ID**, and **client secret**.
+- Service Principal mode: note the **subscription ID**, **tenant ID**, **client ID**, and **client secret**. Managed Identity mode: note only the **subscription ID**; grant the RBAC role above to the identity itself instead of a Service Principal.
 
 ## AWS prerequisites
 
@@ -104,8 +120,8 @@ Store these secrets in `vault.yml`:
 | Vault variable | Purpose | Mode |
 |---|---|---|
 | `vault_controller_password` | AAP admin password | `[ALWAYS REQUIRED]` |
-| `vault_azure_client_id` | Azure Service Principal client (application) ID | `[ALWAYS REQUIRED]` |
-| `vault_azure_client_secret` | Azure Service Principal client secret | `[ALWAYS REQUIRED]` |
+| `vault_azure_client_id` | Azure Service Principal client (application) ID | `[ALWAYS REQUIRED]` when `azure_auth_mode: service_principal` (default); unused with `azure_auth_mode: msi` |
+| `vault_azure_client_secret` | Azure Service Principal client secret | `[ALWAYS REQUIRED]` when `azure_auth_mode: service_principal` (default); unused with `azure_auth_mode: msi` |
 | `vault_azure_vm_admin_password` | Azure VM admin password (set during provisioning) | `[LAB/DEV ONLY]` |
 | `vault_aws_access_key` | AWS IAM access key ID | `[ALWAYS REQUIRED]` |
 | `vault_aws_secret_key` | AWS IAM secret access key | `[ALWAYS REQUIRED]` |

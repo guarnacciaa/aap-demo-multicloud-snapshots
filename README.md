@@ -31,10 +31,19 @@ Phases 1 and 3 only exist when `demo_manage_infrastructure: true` (default); see
 ## Environment / prerequisites
 
 - AAP 2.6+, Azure subscription, AWS account, cross-cloud API connectivity from AAP.
-- Azure Service Principal with permissions to manage resource groups, networking, VMs, disks, and snapshots.
+- Azure Service Principal (default) or Managed Identity — see [Azure authentication mode](#azure-authentication-mode) — with permissions to manage resource groups, networking, VMs, disks, and snapshots.
 - AWS IAM user or role with EC2, VPC, and EBS permissions (create/describe/delete).
 - A RHEL 9 AMI ID for your chosen AWS region.
 - See [docs/setup.md](docs/setup.md) for detailed credential and EE setup.
+
+## Azure authentication mode
+
+`azure_auth_mode` in `demo_variables.yml` (default `service_principal`) selects how every `azure.azcollection` task authenticates, independent of the deployment mode below:
+
+| `azure_auth_mode` | Requires | Notes |
+|---|---|---|
+| `service_principal` (default) | `vault_azure_client_id` / `vault_azure_client_secret` | Works on any AAP topology |
+| `msi` | Nothing stored in AAP | AAP's execution node/EE container must itself be an Azure resource with a Managed Identity enabled — see [docs/setup.md](docs/setup.md#azure-authentication-mode-service-principal-vs-managed-identity) |
 
 ## Deployment modes
 

@@ -1,5 +1,7 @@
 # Description: Discover an Azure VM by hostname and snapshot all managed disks.
-# Requires Azure Service Principal credentials injected by AAP or environment.
+# Authenticates via the Service Principal credentials AAP injects (default) or,
+# when azure_auth_mode: msi, via Managed Identity — see the auth_source
+# parameter on each azure_rm_* task below and docs/setup.md.
 ---
 - name: Create Azure disk snapshots for a VM identified by hostname
   hosts: localhost
@@ -26,10 +28,19 @@
         - always
 
   tasks:
+    # AAP's Azure RM credential type has no Managed Identity input, so it can
+    # only inject Service Principal env vars (AZURE_CLIENT_ID/SECRET/TENANT).
+    # To support Managed Identity too, every azure_rm_* task below passes
+    # auth_source explicitly: "msi" when azure_auth_mode: msi (the host running
+    # this job must then be an Azure resource with MSI enabled — see
+    # docs/setup.md), otherwise omitted so the module falls back to its
+    # default "auto" source (module params -> env -> credential_file -> cli),
+    # which picks up the Service Principal env vars AAP already injected.
     - name: Look up Azure virtual machine by hostname
       azure.azcollection.azure_rm_virtualmachine_info:
         resource_group: "{{ azure_resource_group }}"
         name: "{{ target_hostname }}"
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       register: azure_vm_info
       tags:
         - azure
@@ -56,6 +67,7 @@
         resource_type: virtualMachines
         resource_name: "{{ target_hostname }}"
         api_version: "2023-07-01"
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       register: azure_vm_resource
       tags:
         - azure
@@ -90,6 +102,7 @@
           Demo: multicloud-snapshots
           SourceHostname: "{{ target_hostname }}"
           RetentionDays: "{{ snapshot_retention_days | default(30) | string }}"
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       loop: "{{ azure_disk_ids }}"
       register: azure_snapshot_results
       tags:

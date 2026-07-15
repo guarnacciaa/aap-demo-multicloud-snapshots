@@ -3,6 +3,9 @@
 # virtual network, subnet, NSG, public IP, NIC, and the VM itself.
 # Run before snapshot playbooks. Safe to re-run (idempotent).
 # Counterpart: deprovision_azure_vm.yml (destroys all resources created here).
+# Authenticates via the Service Principal credentials AAP injects (default) or,
+# when azure_auth_mode: msi, via Managed Identity — see the auth_source
+# parameter on each azure_rm_* task below and docs/setup.md.
 ---
 - name: Provision Azure demo VM and networking for multicloud snapshots
   hosts: localhost
@@ -46,6 +49,15 @@
         - always
 
   tasks:
+    # AAP's Azure RM credential type has no Managed Identity input, so it can
+    # only inject Service Principal env vars (AZURE_CLIENT_ID/SECRET/TENANT).
+    # To support Managed Identity too, every azure_rm_* task below passes
+    # auth_source explicitly: "msi" when azure_auth_mode: msi (the host running
+    # this job must then be an Azure resource with MSI enabled — see
+    # docs/setup.md), otherwise omitted so the module falls back to its
+    # default "auto" source (module params -> env -> credential_file -> cli),
+    # which picks up the Service Principal env vars AAP already injected.
+    #
     # Orphaned OS disks block reprovisioning: if the VM does not exist but its
     # disk was left behind (e.g. from a partial deletion), Azure raises
     # ConflictingUserInput and refuses CreateOption.FromImage. Remove the disk
@@ -55,6 +67,7 @@
         resource_group: "{{ azure_resource_group }}"
         name: "{{ target_hostname }}"
         state: absent
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       ignore_errors: true
       tags:
         - azure
@@ -67,6 +80,7 @@
         location: "{{ azure_location }}"
         tags:
           Demo: "{{ demo_tag }}"
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       tags:
         - azure
         - provision
@@ -80,6 +94,7 @@
           - "{{ azure_vnet_cidr }}"
         tags:
           Demo: "{{ demo_tag }}"
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       tags:
         - azure
         - provision
@@ -91,6 +106,7 @@
         virtual_network_name: "{{ azure_vnet_name }}"
         name: "{{ azure_subnet_name }}"
         address_prefix_cidr: "{{ azure_subnet_cidr }}"
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       tags:
         - azure
         - provision
@@ -110,6 +126,7 @@
             direction: Inbound
         tags:
           Demo: "{{ demo_tag }}"
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       tags:
         - azure
         - provision
@@ -123,6 +140,7 @@
         sku: Standard
         tags:
           Demo: "{{ demo_tag }}"
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       register: azure_pip_result
       tags:
         - azure
@@ -142,6 +160,7 @@
             primary: true
         tags:
           Demo: "{{ demo_tag }}"
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       tags:
         - azure
         - provision
@@ -166,6 +185,7 @@
         tags:
           Demo: "{{ demo_tag }}"
           Hostname: "{{ target_hostname }}"
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       register: azure_vm_result
       tags:
         - azure

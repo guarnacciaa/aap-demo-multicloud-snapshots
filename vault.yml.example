@@ -26,9 +26,12 @@
 controller_username: admin
 controller_password: CHANGE_ME
 
-# --- Azure Service Principal --- [ALWAYS REQUIRED]
+# --- Azure Service Principal --- [ALWAYS REQUIRED when azure_auth_mode: service_principal]
 # Required by the Snapshot - Azure by hostname job template in every
-# deployment mode (authenticates the lookup of the target VM by hostname).
+# deployment mode (authenticates the lookup of the target VM by hostname) —
+# but only when azure_auth_mode in demo_variables.yml is "service_principal"
+# (the default). Not read at all when azure_auth_mode: msi (Managed
+# Identity); leave both at CHANGE_ME in that case, see demo_variables.yml.example.
 vault_azure_client_id: CHANGE_ME
 vault_azure_client_secret: CHANGE_ME
 
