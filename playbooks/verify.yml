@@ -36,6 +36,23 @@
       tags:
         - verify
 
+    # credentials.yml gates whether the "Azure Service Principal" credential
+    # object is even created in AAP on this variable (state: absent when left
+    # at CHANGE_ME). A missing subscription ID here means aap_config.yml would
+    # silently skip creating that credential, and every azure.azcollection
+    # task would fail at runtime with "Failed to get credentials".
+    - name: Confirm azure_subscription_id is set (required for the Azure credential to exist)
+      ansible.builtin.assert:
+        that:
+          - azure_subscription_id is defined
+          - azure_subscription_id != "CHANGE_ME"
+        fail_msg: >-
+          Set azure_subscription_id in demo_variables.yml. Leaving it at
+          CHANGE_ME makes credentials.yml skip creating the "Azure Service
+          Principal" credential entirely.
+      tags:
+        - verify
+
     # azure_auth_mode is orthogonal to demo_manage_infrastructure: it applies
     # to the snapshot playbooks in every mode (see demo_variables.yml.example).
     - name: Confirm azure_auth_mode is a supported value

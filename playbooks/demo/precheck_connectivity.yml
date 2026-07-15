@@ -19,7 +19,12 @@
       ansible.builtin.assert:
         that:
           - azure_subscription_id is defined
-        fail_msg: Set azure_subscription_id in demo_variables.yml.
+          - azure_subscription_id != "CHANGE_ME"
+        fail_msg: >-
+          Set azure_subscription_id in demo_variables.yml and re-apply
+          aap_config.yml. Leaving it at CHANGE_ME makes credentials.yml skip
+          creating the "Azure Service Principal" credential entirely, which
+          is the root cause if this check is what sent you here.
       tags:
         - always
 

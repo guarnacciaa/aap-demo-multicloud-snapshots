@@ -58,6 +58,7 @@ Notes:
 - Choose `msi` only when you know AAP's execution nodes run on Azure infrastructure with an identity attached. In every other topology (on-prem, another cloud, OpenShift not on Azure), `service_principal` is the only option that works.
 - `playbooks/aap_config.yml` and `playbooks/verify.yml` validate `azure_auth_mode` and only require the Service Principal vault secrets when it is set to `service_principal` (the default).
 - Switching modes: change `azure_auth_mode` and re-run `ansible-playbook playbooks/aap_config.yml --vault-id @prompt` to update the Azure credential's stored inputs.
+- **`azure_auth_mode` must be threaded through each job template's `extra_vars`** (see `group_vars/all/job_templates.yml` / `job_templates_infra.yml`). AAP runs `playbooks/demo/*.yml` against its own generated inventory, not this repository's `inventory.yml`, so `group_vars/all/demo_variables.yml` is **not** auto-loaded for those nested playbooks the way it is for `playbooks/aap_config.yml` and `playbooks/verify.yml`. If a job template is missing `azure_auth_mode` in its `extra_vars`, every `auth_source` Jinja expression in that playbook silently falls back to the `service_principal` branch — even with `azure_auth_mode: msi` set correctly in `demo_variables.yml` — and Azure auth fails with a "Failed to get credentials" error mentioning environment variables, a `~/.azure/credentials` profile, and `az login`, because the MSI credential (subscription only, no client/secret) does not satisfy `auto` resolution either. Re-run `aap_config.yml` after editing `extra_vars` so the stored job template picks up the change.
 
 
 
@@ -74,6 +75,20 @@ Notes:
 
 
 
+
+## Trust the platform CA (growth installs)
+
+Do this **before** any other operation against this AAP instance: `podman login`/`push`, `ansible-galaxy collection install`, or `ansible-playbook playbooks/aap_config.yml`. On container **growth** (all-in-one) deployments, Private Automation Hub and Controller both serve a self-signed certificate by default. Left untrusted, this causes `x509: certificate signed by unknown authority` errors at multiple, unrelated points later on: `podman login`/`push` to the Hub registry, Controller pulling the custom execution environment image, and sometimes `ansible-galaxy`/API calls from the bastion.
+
+Install the AAP install CA on any node that will run `podman` or `ansible` commands against this platform (run as root):
+
+```bash
+# Default path for the containerized installer; adjust if your install dir differs.
+sudo cp ~/aap/tls/ca.cert /etc/pki/ca-trust/source/anchors/aap-platform-ca.crt
+sudo update-ca-trust extract
+```
+
+This is a one-time step per node; the containerized installer does not always copy the CA into the system trust store automatically. If you skip it, use `--tls-verify=false` for `podman login`/`push` and rely on the **Verify SSL**-disabled Container Registry credential (created by CasC) for Controller's own EE pulls — see [Custom Execution Environment (optional)](#custom-execution-environment-optional) below — but note that credential alone does not always cover EE pulls on growth installs (see the troubleshooting table).
 
 ## Azure prerequisites
 
@@ -249,23 +264,7 @@ If job templates fail to pull the image:
    ansible-playbook playbooks/aap_config.yml --tags credentials,execution_environments --vault-id @prompt
   ```
 
-For local `podman pull` tests, use `--tls-verify=false` (Controller job pulls use the credential instead).
-
-**Trust the platform CA on the AAP node (growth installs)**
-
-On container **growth** (all-in-one) deployments, job pods pull the EE image on the AAP host via Podman. The Container Registry credential with **Verify SSL** disabled covers most cases, but some installs still fail with `x509: certificate signed by unknown authority` because the platform self-signed CA was never added to the host OS trust store.
-
-If credential wiring does not fix the pull, install the AAP install CA on the node (run as root on the AAP host):
-
-```bash
-# Default path for the containerized installer; adjust if your install dir differs.
-sudo cp ~/aap/tls/ca.cert /etc/pki/ca-trust/source/anchors/aap-platform-ca.crt
-sudo update-ca-trust extract
-```
-
-Then retry the job (or test with `podman pull <aap_host>/ee-multicloud-snapshots:latest` without `--tls-verify=false`). This is a one-time step per node; the containerized installer does not always copy the CA into the system trust store automatically.
-
-Use both approaches when needed: **Verify SSL** off on the registry credential for Controller/receptor auth, and the system CA trust when the runtime still validates TLS against the OS store.
+For local `podman pull` tests, use `--tls-verify=false` (Controller job pulls use the credential instead). If the pull still fails with `x509: certificate signed by unknown authority` after confirming the credential, you likely skipped [Trust the platform CA (growth installs)](#trust-the-platform-ca-growth-installs) above — that system-level trust step is needed on growth installs in addition to the **Verify SSL**-disabled credential.
 
 **Troubleshooting**
 
@@ -282,8 +281,8 @@ Use both approaches when needed: **Verify SSL** off on the registry credential f
 | `401 Unauthorized` on `podman login` or push                                                    | Wrong AAP credentials or insufficient Hub permissions                                                                                        | Use a user with permission to create containers on Hub (for example the gateway admin); authenticate through the Platform Gateway                                                                                            |
 | Connection refused on push                                                                      | Wrong registry host or port                                                                                                                  | Confirm `<aap_host>` matches `aap_hostname`; retry with port `8444` as shown above                                                                                                                                           |
 | `couldn't resolve module/action 'azure.azcollection.*'` at job runtime                          | Job uses the placeholder EE (`quay.io/ansible/ansible-runner`) instead of the custom image                                                   | Set `demo_execution_environment_image` in `demo_variables.yml`, re-run `aap_config.yml`, and confirm the job template points to `ee-multicloud-snapshots`                                                                    |
-| `x509: certificate signed by unknown authority` when Controller pulls the EE                    | Hub registry uses a self-signed certificate; EE missing registry credential and/or host OS does not trust the platform CA                    | Link **PAH Container Registry** with **Verify SSL** off to the EE; if pull still fails on growth installs, copy `~/aap/tls/ca.cert` to `/etc/pki/ca-trust/source/anchors/` and run `update-ca-trust extract` on the AAP node |
-| `unable to copy from source docker://<host>/ee-...` with x509 error                             | Same as above, or `hub_registry_host` does not match the registry in `demo_execution_environment_image` (including `:8444` if used for push) | Align image host and credential; re-run CasC; on growth nodes, trust the platform CA as described above                                                                                                                      |
+| `x509: certificate signed by unknown authority` when Controller pulls the EE                    | Hub registry uses a self-signed certificate; EE missing registry credential and/or host OS does not trust the platform CA                    | Link **PAH Container Registry** with **Verify SSL** off to the EE; if pull still fails on growth installs, see [Trust the platform CA (growth installs)](#trust-the-platform-ca-growth-installs) |
+| `unable to copy from source docker://<host>/ee-...` with x509 error                             | Same as above, or `hub_registry_host` does not match the registry in `demo_execution_environment_image` (including `:8444` if used for push) | Align image host and credential; re-run CasC; see [Trust the platform CA (growth installs)](#trust-the-platform-ca-growth-installs)                                                                                                                      |
 | `Demo-Multicloud` inventory shows no hosts                                                      | Constructed inventory missing `input_inventories`, or hosts only in child inventories                                                        | Re-run `aap_config.yml`; confirm hosts under **Azure-Resources** / **AWS-Resources**; run **Update - Multicloud inventory hosts** after setup workflow                                                                       |
 | Sync task fails with HTTP 404 on `/api/v2/`                                                     | Legacy Controller API path on Platform Gateway                                                                                               | Use `ansible.controller` modules only; gateway path is `/api/controller/v2/` (AAP 2.5+)                                                                                                                                      |
 | Sync task: inventory source not found                                                           | Wrong source name (`Demo-Multicloud` vs auto-created name)                                                                                   | Source is `Auto-created source for: Demo-Multicloud`; sync task resolves it via API lookup                                                                                                                                   |

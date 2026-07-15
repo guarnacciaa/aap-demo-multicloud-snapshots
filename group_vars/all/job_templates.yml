@@ -17,6 +17,12 @@ controller_templates:
     ask_variables_on_launch: true
     extra_vars:
       azure_subscription_id: "{{ azure_subscription_id }}"
+      # Without this, the azure_rm_subscription_info task's auth_source
+      # Jinja always resolves to the service_principal branch (silently
+      # ignoring a real azure_auth_mode: msi), because group_vars/all/ is
+      # not reliably auto-loaded for playbooks/demo/*.yml when AAP supplies
+      # its own generated inventory instead of this project's inventory.yml.
+      azure_auth_mode: "{{ azure_auth_mode }}"
       aws_region: "{{ aws_region }}"
     labels:
       - "{{ demo_label_name }}"
@@ -34,6 +40,9 @@ controller_templates:
     extra_vars:
       azure_resource_group: "{{ azure_resource_group }}"
       azure_vm_hostname: "{{ azure_vm_hostname }}"
+      # See the comment on Snapshot - Connectivity check above: this playbook
+      # also branches on azure_auth_mode and must receive it via extra_vars.
+      azure_auth_mode: "{{ azure_auth_mode }}"
       aws_ec2_hostname: "{{ aws_ec2_hostname }}"
       aws_region: "{{ aws_region }}"
       snapshot_name_prefix: "{{ snapshot_name_prefix }}"
@@ -52,6 +61,9 @@ controller_templates:
     extra_vars:
       target_hostname: "{{ azure_vm_hostname }}"
       azure_resource_group: "{{ azure_resource_group }}"
+      # See the comment on Snapshot - Connectivity check above: this playbook
+      # also branches on azure_auth_mode and must receive it via extra_vars.
+      azure_auth_mode: "{{ azure_auth_mode }}"
     labels:
       - "{{ demo_label_name }}"
 

@@ -47,6 +47,26 @@
       tags:
         - always
 
+    # credentials.yml gates whether the "Azure Service Principal" credential
+    # object is even created in AAP on this variable (state: absent when left
+    # at CHANGE_ME). Without this check, CasC applies "successfully" but
+    # silently skips creating the credential, and every azure.azcollection
+    # task in the snapshot job templates then fails at runtime with
+    # "Failed to get credentials" since no AZURE_* env vars get injected.
+    - name: Validate azure_subscription_id before CasC gates the Azure credential
+      ansible.builtin.assert:
+        that:
+          - azure_subscription_id is defined
+          - azure_subscription_id != "CHANGE_ME"
+        fail_msg: >-
+          Set azure_subscription_id in demo_variables.yml. Leaving it at
+          CHANGE_ME makes credentials.yml skip creating the "Azure Service
+          Principal" credential entirely (state: absent), which then fails
+          every Azure job template at runtime with "Failed to get
+          credentials" instead of failing here.
+      tags:
+        - always
+
     # azure_auth_mode picks which Azure authentication path the azure_rm_*
     # tasks use (see demo_variables.yml.example). It has no relationship to
     # demo_manage_infrastructure: it applies to the snapshot playbooks in
@@ -118,27 +138,6 @@
       when: demo_manage_infrastructure | default(true) | bool
       tags:
         - always
-
-    # infra.aap_configuration's project role only triggers a new SCM sync when
-    # scm_url/scm_branch change; re-running aap_config.yml after pushing new
-    # playbook files to the SAME branch otherwise leaves the project's local
-    # checkout stale, so dispatch fails job template creation/update with
-    # "Playbook not found for project." Force a sync here, before job
-    # templates are created, on every apply. ignore_errors covers the very
-    # first run, where the project does not exist yet (dispatch creates it
-    # below, and Controller syncs new projects automatically on creation).
-    - name: Sync the demo project to the latest commit before creating job templates
-      ansible.controller.project_update:
-        name: "{{ demo_project_name }}"
-        wait: true
-        controller_host: "https://{{ aap_hostname }}"
-        controller_username: "{{ aap_username }}"
-        controller_password: "{{ aap_password }}"
-        validate_certs: "{{ aap_validate_certs }}"
-      ignore_errors: true
-      tags:
-        - always
-        - projects
 
   roles:
     # NOTE: infra.aap_configuration is validated content (not certified).
