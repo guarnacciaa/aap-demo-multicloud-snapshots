@@ -39,7 +39,52 @@ ansible-playbook playbooks/demo/provision_aws_ec2.yml \
 
 1. Open **Templates** -> **WF - Multicloud snapshot and retention**.
 2. Launch the workflow (no survey required if extra vars are set on job templates).
-3. Monitor nodes: Azure snapshot -> AWS snapshot -> Verify -> Cleanup (optional).
+3. Monitor nodes: Connectivity check -> Preview (dry run) -> Azure snapshot -> AWS snapshot -> Verify -> Cleanup preview (dry run) -> Cleanup (optional). The four dry-run nodes are read-only and fail fast (or simply report) before any snapshot is created or deleted.
+
+### Pre-flight checks (optional, standalone)
+
+Each of the following can be launched on its own — as its own job template, or from the CLI — without running the full workflow:
+
+Connectivity check (validates Azure/AWS credentials, no target VM needed):
+
+```bash
+ansible-playbook playbooks/demo/precheck_connectivity.yml \
+  -e azure_subscription_id=00000000-0000-0000-0000-000000000000 \
+  -e aws_region=us-east-1 \
+  --vault-id @prompt
+```
+
+Preview target VMs and disks (see exactly which VM/instance and disks/volumes will be snapshotted):
+
+```bash
+ansible-playbook playbooks/demo/snapshot_preview.yml \
+  -e azure_resource_group=my-rg \
+  -e azure_vm_hostname=azure-demo-vm01 \
+  -e aws_ec2_hostname=aws-demo-vm01 \
+  -e aws_region=us-east-1 \
+  --vault-id @prompt
+```
+
+Cleanup preview (see which existing snapshots the retention policy would delete, without deleting anything):
+
+```bash
+ansible-playbook playbooks/demo/snapshot_cleanup_preview.yml \
+  -e snapshot_retention_days=30 \
+  -e azure_resource_group=my-rg \
+  -e aws_region=us-east-1 \
+  --vault-id @prompt
+```
+
+Snapshot inventory report (list every demo snapshot currently in Azure/AWS, any time):
+
+```bash
+ansible-playbook playbooks/demo/snapshot_inventory.yml \
+  -e azure_resource_group=my-rg \
+  -e aws_region=us-east-1 \
+  --vault-id @prompt
+```
+
+These are the same checks that run automatically inside **WF - Multicloud snapshot and retention**; run them standalone (or as their AAP job templates) whenever you only want a status check without launching the full workflow.
 
 ### Run individual snapshot templates
 

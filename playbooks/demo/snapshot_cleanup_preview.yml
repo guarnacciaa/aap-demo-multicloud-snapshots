@@ -1,0 +1,222 @@
+# Description: Read-only preview of the snapshot cleanup retention policy.
+# Reuses the same listing/filtering logic as snapshot_cleanup.yml to report
+# which Azure/AWS demo snapshots WOULD be removed by Snapshot - Cleanup
+# (optional) under the current snapshot_cleanup_mode / snapshot_retention_days
+# / snapshot_retention_count — without deleting anything. Runs regardless of
+# enable_snapshot_cleanup, so operators can decide whether to enable cleanup
+# based on what it would actually remove.
+---
+- name: Preview which snapshots the retention policy would delete
+  hosts: localhost
+  gather_facts: true
+  collections:
+    - azure.azcollection
+    - amazon.aws
+    - ansible.builtin
+
+  pre_tasks:
+    - name: Resolve snapshot cleanup preview variables with defaults
+      ansible.builtin.set_fact:
+        snapshot_cleanup_mode: "{{ snapshot_cleanup_mode | default('time') }}"
+        snapshot_retention_days: "{{ snapshot_retention_days | default(30) | int }}"
+        snapshot_retention_count: "{{ snapshot_retention_count | default(1) | int }}"
+        snapshot_name_prefix: "{{ snapshot_name_prefix | default('poc-snapshot') }}"
+        aws_region: "{{ aws_region | default('us-east-1') }}"
+      tags:
+        - always
+
+    - name: Validate required snapshot cleanup preview variables
+      ansible.builtin.assert:
+        that:
+          - azure_resource_group is defined
+          - snapshot_cleanup_mode in ['time', 'count']
+        fail_msg: >-
+          Set azure_resource_group in demo_variables.yml.
+          snapshot_cleanup_mode must be 'time' or 'count'.
+      tags:
+        - always
+
+    # Only needed for time mode; count mode uses sort+slice instead.
+    - name: Calculate retention cutoff timestamp (time mode only)
+      ansible.builtin.set_fact:
+        retention_cutoff_epoch: "{{ (ansible_date_time.epoch | int) - (snapshot_retention_days * 86400) }}"
+      when: snapshot_cleanup_mode == 'time'
+      tags:
+        - always
+
+  tasks:
+    # -------------------------------------------------------------------------
+    # Azure preview
+    # -------------------------------------------------------------------------
+    - name: List Azure demo snapshots
+      azure.azcollection.azure_rm_resource_info:
+        resource_group: "{{ azure_resource_group }}"
+        provider: Compute
+        resource_type: snapshots
+        # See snapshot_verify.yml for supported Microsoft.Compute/snapshots API versions.
+        api_version: "2026-03-02"
+      register: azure_snapshots_raw
+      tags:
+        - azure
+        - preview
+
+    - name: Filter Azure snapshots tagged and named for this demo
+      ansible.builtin.set_fact:
+        azure_demo_snapshots: >-
+          {{
+            azure_snapshots_raw.response | default([])
+            | selectattr('tags', 'defined')
+            | selectattr('tags.Demo', 'defined')
+            | selectattr('tags.Demo', 'equalto', 'multicloud-snapshots')
+            | selectattr('name', 'search', snapshot_name_prefix)
+            | list
+          }}
+      tags:
+        - azure
+        - preview
+
+    # selectattr cannot express "older than a computed cutoff" (it needs a
+    # to_datetime conversion per item). Accumulate matches with a per-item
+    # set_fact loop instead — the same comparison snapshot_cleanup.yml uses
+    # in its deletion task's "when", but materialized into a real list here
+    # (a Jinja {% for %} block inside set_fact would render as a string, not
+    # a list, breaking the map()/length filters used in the report below).
+    - name: Reset Azure deletion candidate list (time mode)
+      ansible.builtin.set_fact:
+        azure_snapshots_to_delete: []
+      when: snapshot_cleanup_mode == 'time'
+      tags:
+        - azure
+        - preview
+
+    - name: Identify Azure snapshots older than the retention policy (time mode)
+      ansible.builtin.set_fact:
+        azure_snapshots_to_delete: "{{ azure_snapshots_to_delete + [item] }}"
+      loop: "{{ azure_demo_snapshots }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when:
+        - snapshot_cleanup_mode == 'time'
+        - (item.properties.timeCreated | regex_replace('\.\d+', '') | to_datetime('%Y-%m-%dT%H:%M:%S%z')).strftime('%s') | int < retention_cutoff_epoch | int
+      tags:
+        - azure
+        - preview
+
+    - name: Build sorted Azure snapshot list for count-based preview
+      ansible.builtin.set_fact:
+        _azure_snapshots_sorted: "{{ azure_demo_snapshots | sort(attribute='properties.timeCreated') | reverse | list }}"
+      when: snapshot_cleanup_mode == 'count'
+      tags:
+        - azure
+        - preview
+
+    - name: Identify Azure snapshots exceeding the retention count (count mode)
+      ansible.builtin.set_fact:
+        azure_snapshots_to_delete: "{{ _azure_snapshots_sorted[snapshot_retention_count | int:] }}"
+      when: snapshot_cleanup_mode == 'count'
+      tags:
+        - azure
+        - preview
+
+    - name: Report Azure cleanup preview
+      ansible.builtin.debug:
+        msg:
+          - >-
+            Azure: {{ azure_demo_snapshots | length }} demo snapshot(s) found;
+            {{ azure_snapshots_to_delete | default([]) | length }} would be
+            deleted by the '{{ snapshot_cleanup_mode }}' retention policy.
+          - >-
+            Would delete:
+            {{ (azure_snapshots_to_delete | default([]) | map(attribute='name') | list)
+               if (azure_snapshots_to_delete | default([]) | length > 0) else 'none' }}
+      tags:
+        - azure
+        - preview
+
+    # -------------------------------------------------------------------------
+    # AWS preview
+    # -------------------------------------------------------------------------
+    - name: List AWS demo snapshots
+      amazon.aws.ec2_snapshot_info:
+        region: "{{ aws_region }}"
+        filters:
+          tag:Demo: multicloud-snapshots
+      register: aws_snapshots_raw
+      tags:
+        - aws
+        - preview
+
+    - name: Filter AWS snapshots by naming prefix
+      ansible.builtin.set_fact:
+        aws_demo_snapshots: >-
+          {{
+            aws_snapshots_raw.snapshots | default([])
+            | selectattr('tags.Name', 'defined')
+            | selectattr('tags.Name', 'search', snapshot_name_prefix)
+            | list
+          }}
+      tags:
+        - aws
+        - preview
+
+    - name: Reset AWS deletion candidate list (time mode)
+      ansible.builtin.set_fact:
+        aws_snapshots_to_delete: []
+      when: snapshot_cleanup_mode == 'time'
+      tags:
+        - aws
+        - preview
+
+    - name: Identify AWS snapshots older than the retention policy (time mode)
+      ansible.builtin.set_fact:
+        aws_snapshots_to_delete: "{{ aws_snapshots_to_delete + [item] }}"
+      loop: "{{ aws_demo_snapshots }}"
+      loop_control:
+        label: "{{ item.snapshot_id }}"
+      when:
+        - snapshot_cleanup_mode == 'time'
+        - (item.start_time | regex_replace('\.\d+', '') | to_datetime('%Y-%m-%dT%H:%M:%S%z')).strftime('%s') | int < retention_cutoff_epoch | int
+      tags:
+        - aws
+        - preview
+
+    - name: Build sorted AWS snapshot list for count-based preview
+      ansible.builtin.set_fact:
+        _aws_snapshots_sorted: "{{ aws_demo_snapshots | sort(attribute='start_time') | reverse | list }}"
+      when: snapshot_cleanup_mode == 'count'
+      tags:
+        - aws
+        - preview
+
+    - name: Identify AWS snapshots exceeding the retention count (count mode)
+      ansible.builtin.set_fact:
+        aws_snapshots_to_delete: "{{ _aws_snapshots_sorted[snapshot_retention_count | int:] }}"
+      when: snapshot_cleanup_mode == 'count'
+      tags:
+        - aws
+        - preview
+
+    - name: Report AWS cleanup preview
+      ansible.builtin.debug:
+        msg:
+          - >-
+            AWS: {{ aws_demo_snapshots | length }} demo snapshot(s) found;
+            {{ aws_snapshots_to_delete | default([]) | length }} would be
+            deleted by the '{{ snapshot_cleanup_mode }}' retention policy.
+          - >-
+            Would delete:
+            {{ (aws_snapshots_to_delete | default([]) | map(attribute='snapshot_id') | list)
+               if (aws_snapshots_to_delete | default([]) | length > 0) else 'none' }}
+      tags:
+        - aws
+        - preview
+
+    - name: Note whether cleanup is currently enabled
+      ansible.builtin.debug:
+        msg: >-
+          enable_snapshot_cleanup is currently {{ enable_snapshot_cleanup | default(false) }}.
+          {{ "Snapshot - Cleanup (optional) will remove the snapshot(s) listed above on its next run."
+             if (enable_snapshot_cleanup | default(false) | bool)
+             else "Snapshot - Cleanup (optional) is disabled, so nothing will be deleted until enable_snapshot_cleanup is set to true." }}
+      tags:
+        - preview

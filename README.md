@@ -19,7 +19,7 @@ A single AAP workflow provisions Azure and AWS VMs, while a second workflow snap
 | Phase | AAP object | Purpose |
 |---|---|---|
 | 1 - Setup | `WF - Demo setup (provision infrastructure)` | Create Azure VM, AWS EC2, and all networking |
-| 2 - Demo | `WF - Multicloud snapshot and retention` | Snapshot VMs, verify, optionally clean old snapshots |
+| 2 - Demo | `WF - Multicloud snapshot and retention` | Check connectivity, preview target VMs/disks, snapshot, verify, preview and optionally clean old snapshots |
 | 3 - Teardown | `WF - Demo teardown (destroy infrastructure)` | Remove snapshots and all provisioned resources |
 
 Phases 1 and 3 only exist when `demo_manage_infrastructure: true` (default); see [Deployment modes](#deployment-modes) for the customer/PoC mode that runs phase 2 only, against pre-existing infrastructure.
@@ -52,7 +52,7 @@ Phases 1 and 3 only exist when `demo_manage_infrastructure: true` (default); see
 | Mode | `demo_manage_infrastructure` | AAP objects created | Use when |
 |---|---|---|---|
 | Lab / dev | `true` (default) | Full lifecycle: `Provision - *`, `Update - Multicloud inventory hosts`, `Deprovision - *`, `WF - Demo setup`, `WF - Demo teardown`, plus all snapshot objects | You are running the demo yourself and want AAP to create and destroy the VMs and networking |
-| Customer / PoC | `false` | Only `Snapshot - Azure/AWS by hostname`, `Snapshot - Verify`, `Snapshot - Cleanup (optional)`, and `WF - Multicloud snapshot and retention` | The customer already provides the VMs and networking; no provisioning or teardown object is created in AAP, removing any risk of accidentally launching a job that creates duplicate resources or deletes the customer's existing networking |
+| Customer / PoC | `false` | Only `Snapshot - Connectivity check (dry run)`, `Snapshot - Preview (dry run)`, `Snapshot - Azure/AWS by hostname`, `Snapshot - Verify`, `Snapshot - Cleanup preview (dry run)`, `Snapshot - Cleanup (optional)`, `Snapshot - Inventory report`, and `WF - Multicloud snapshot and retention` | The customer already provides the VMs and networking; no provisioning or teardown object is created in AAP, removing any risk of accidentally launching a job that creates duplicate resources or deletes the customer's existing networking |
 
 In customer mode, set `azure_vm_hostname` / `azure_resource_group` and `aws_ec2_hostname` / `aws_region` to the customer's existing VM/instance, and scope the Azure/AWS credentials down to read + snapshot permissions only (see [docs/setup.md](docs/setup.md)).
 
@@ -94,6 +94,7 @@ Re-apply CasC with `aap_config.yml` when you want to deploy again.
 | Reproducible platform config | `infra.aap_configuration` CasC for all AAP objects |
 | Multicloud inventory UX (UC4) | Parent `Demo-Multicloud` inventory with Azure/AWS children |
 | Clean post-demo state | Teardown workflow destroys all resources including snapshots |
+| Confidence before mutating cloud state | Four read-only dry-run job templates (connectivity check, target preview, cleanup preview, inventory report) gate and inform the workflow before any snapshot is created or deleted |
 
 ## Architecture
 
@@ -101,15 +102,15 @@ Re-apply CasC with `aap_config.yml` when you want to deploy again.
                          AAP Controller
                     +---------------------+
                     |                     |
-          +---------+---------+  +--------+---------+
-          | WF - Demo setup   |  | WF - Snapshot    |
-          | (provision infra) |  | and retention    |
-          +---+----------+----+  +---+----+----+----+
-              |          |           |    |    |
-     +--------+    +-----+---+  +---+  +-+-+  +------+
-     | Azure  |    | AWS EC2 |  | Az | |AWS|  |Verify|
-     | VM     |    |         |  |snap| |snap|  |      |
-     +--------+    +---------+  +----+ +----+  +------+
+          +---------+---------+  +--------+---------------------------------------+
+          | WF - Demo setup   |  | WF - Multicloud snapshot and retention         |
+          | (provision infra) |  | Connectivity -> Preview -> Azure snap ->       |
+          +---+----------+----+  | AWS snap -> Verify -> Cleanup preview ->       |
+              |          |       | Cleanup (optional)                             |
+     +--------+    +-----+---+   +-------------------------------------------------+
+     | Azure  |    | AWS EC2 |
+     | VM     |    |         |
+     +--------+    +---------+
 
           +---------------------+
           | WF - Demo teardown  |
@@ -167,12 +168,18 @@ Tables below list every job template the demo defines. The **Infrastructure prov
 
 ### Snapshot operations
 
+`Snapshot - Inventory report` is a standalone audit tool (not part of `WF - Multicloud snapshot and retention`); launch it any time to list every demo snapshot currently in Azure/AWS.
+
 | Job template | Playbook | Credentials |
 |---|---|---|
+| Snapshot - Connectivity check (dry run) | `playbooks/demo/precheck_connectivity.yml` | Azure SP, AWS IAM |
+| Snapshot - Preview (dry run) | `playbooks/demo/snapshot_preview.yml` | Azure SP, AWS IAM |
 | Snapshot - Azure by hostname | `playbooks/demo/snapshot_azure.yml` | Azure SP |
 | Snapshot - AWS by hostname | `playbooks/demo/snapshot_aws.yml` | AWS IAM |
 | Snapshot - Verify | `playbooks/demo/snapshot_verify.yml` | Azure SP, AWS IAM |
+| Snapshot - Cleanup preview (dry run) | `playbooks/demo/snapshot_cleanup_preview.yml` | Azure SP, AWS IAM |
 | Snapshot - Cleanup (optional) | `playbooks/demo/snapshot_cleanup.yml` | Azure SP, AWS IAM |
+| Snapshot - Inventory report | `playbooks/demo/snapshot_inventory.yml` | Azure SP, AWS IAM |
 
 ### Infrastructure teardown
 
@@ -188,7 +195,7 @@ Tables below list every job template the demo defines. The **Infrastructure prov
 | Workflow | Nodes | Purpose | Mode |
 |---|---|---|---|
 | WF - Demo setup (provision infrastructure) | Provision Azure VM + Provision AWS EC2 (parallel) → Update - Multicloud inventory hosts | Create all demo infrastructure and populate inventories | Lab/dev only |
-| WF - Multicloud snapshot and retention | Azure snapshot -> AWS snapshot -> Verify -> Cleanup | Run the snapshot demo | Always |
+| WF - Multicloud snapshot and retention | Connectivity check -> Preview (dry run) -> Azure snapshot -> AWS snapshot -> Verify -> Cleanup preview -> Cleanup | Run the snapshot demo | Always |
 | WF - Demo teardown (destroy infrastructure) | Cleanup snapshots -> Deprovision Azure + Deprovision AWS (parallel) | Remove everything | Lab/dev only |
 
 ## Collections

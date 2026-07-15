@@ -18,7 +18,7 @@ Tracks testing progress for this demo. Update after each session. For procedural
 
 | Component | Status | Last tested | Notes |
 |---|---|---|---|
-| _(none — this demo uses no custom roles)_ | — | — | |
+| _(none — no custom roles)_ | — | — | |
 
 ### Execution environments
 
@@ -30,32 +30,36 @@ Tracks testing progress for this demo. Update after each session. For procedural
 
 | Component | Status | Last tested | Notes |
 |---|---|---|---|
-| Azure-Resources | Not tested | — | |
-| AWS-Resources | Not tested | — | |
-| Demo-Multicloud (constructed) | Not tested | — | |
+| `Demo-Multicloud` (parent, constructed) | Not tested | — | |
+| `Azure-Resources` / `azure_vms` | Not tested | — | |
+| `AWS-Resources` / `aws_vms` | Not tested | — | |
 
 ### Job templates
 
 | Component | Status | Last tested | Notes |
 |---|---|---|---|
-| Provision - Azure VM | Not tested | — | |
-| Provision - AWS EC2 | Not tested | — | |
-| Update - Multicloud inventory hosts | Not tested | — | |
+| Provision - Azure VM | Not tested | — | Lab/dev mode only |
+| Provision - AWS EC2 | Not tested | — | Lab/dev mode only |
+| Update - Multicloud inventory hosts | Not tested | — | Lab/dev mode only |
+| Snapshot - Connectivity check (dry run) | Not tested | — | Read-only credential/connectivity check |
+| Snapshot - Preview (dry run) | Not tested | — | Read-only pre-flight check |
 | Snapshot - Azure by hostname | Not tested | — | |
 | Snapshot - AWS by hostname | Not tested | — | |
 | Snapshot - Verify | Not tested | — | |
+| Snapshot - Cleanup preview (dry run) | Not tested | — | Read-only retention policy preview |
 | Snapshot - Cleanup (optional) | Not tested | — | |
-| Deprovision - Azure VM | Not tested | — | |
-| Deprovision - AWS EC2 | Not tested | — | |
+| Snapshot - Inventory report | Not tested | — | Standalone audit tool, not in the workflow |
+| Deprovision - Azure VM | Not tested | — | Lab/dev mode only |
+| Deprovision - AWS EC2 | Not tested | — | Lab/dev mode only |
 
 ### Workflows
 
 | Component | Status | Last tested | Notes |
 |---|---|---|---|
-| WF - Demo setup (provision infrastructure) | Not tested | — | |
-| WF - Multicloud snapshot and retention | Not tested | — | |
-| WF - Demo teardown (destroy infrastructure) | Not tested | — | |
+| WF - Demo setup (provision infrastructure) | Not tested | — | Lab/dev mode only |
+| WF - Multicloud snapshot and retention | Not tested | — | Now starts with connectivity check -> preview, and includes a cleanup preview node before cleanup |
+| WF - Demo teardown (destroy infrastructure) | Not tested | — | Lab/dev mode only |
 
 ## Open issues
 
-- `azure_auth_mode: msi` (Managed Identity authentication, added to support running Azure tasks without a stored client secret) is implemented in every `azure_rm_*` task via `auth_source` but has not been exercised end-to-end. It requires an AAP execution node/EE container running on an Azure resource with an identity attached, which was not available at implementation time. The default `service_principal` path is unaffected (same behavior as before this change) but is also still `Not tested` per the table above.
+- None

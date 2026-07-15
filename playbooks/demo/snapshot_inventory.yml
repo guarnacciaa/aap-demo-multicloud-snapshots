@@ -1,0 +1,113 @@
+# Description: Read-only inventory report of every Azure and AWS snapshot
+# tagged for this demo (Demo=multicloud-snapshots), independent of hostname,
+# naming prefix, or the retention policy. Useful to audit current snapshot
+# state before deciding whether to run Snapshot - Cleanup, or to confirm
+# what a completed demo run actually produced. Never modifies anything, and
+# never fails when zero snapshots exist yet.
+---
+- name: Report all existing demo snapshots across Azure and AWS
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - azure.azcollection
+    - amazon.aws
+    - ansible.builtin
+
+  pre_tasks:
+    - name: Validate required inventory report variables
+      ansible.builtin.assert:
+        that:
+          - azure_resource_group is defined
+        fail_msg: Set azure_resource_group in demo_variables.yml.
+      tags:
+        - always
+
+    - name: Resolve inventory report variables with defaults
+      ansible.builtin.set_fact:
+        aws_region: "{{ aws_region | default('us-east-1') }}"
+      tags:
+        - always
+
+  tasks:
+    - name: List all Azure snapshots in the resource group
+      azure.azcollection.azure_rm_resource_info:
+        resource_group: "{{ azure_resource_group }}"
+        provider: Compute
+        resource_type: snapshots
+        # See snapshot_verify.yml for supported Microsoft.Compute/snapshots API versions.
+        api_version: "2026-03-02"
+      register: azure_snapshots_raw
+      tags:
+        - azure
+        - inventory
+
+    - name: Filter and sort Azure snapshots tagged for this demo (newest first)
+      ansible.builtin.set_fact:
+        azure_demo_snapshots: >-
+          {{
+            azure_snapshots_raw.response | default([])
+            | selectattr('tags', 'defined')
+            | selectattr('tags.Demo', 'defined')
+            | selectattr('tags.Demo', 'equalto', 'multicloud-snapshots')
+            | sort(attribute='properties.timeCreated')
+            | reverse
+            | list
+          }}
+      tags:
+        - azure
+        - inventory
+
+    - name: List all AWS snapshots tagged for this demo
+      amazon.aws.ec2_snapshot_info:
+        region: "{{ aws_region }}"
+        filters:
+          tag:Demo: multicloud-snapshots
+      register: aws_snapshots_raw
+      tags:
+        - aws
+        - inventory
+
+    - name: Sort AWS demo snapshots newest first
+      ansible.builtin.set_fact:
+        aws_demo_snapshots: "{{ aws_snapshots_raw.snapshots | default([]) | sort(attribute='start_time') | reverse | list }}"
+      tags:
+        - aws
+        - inventory
+
+    - name: Report Azure snapshot inventory
+      ansible.builtin.debug:
+        msg: >-
+          {{ item.name }} - disk size {{ item.properties.diskSizeGB | default('unknown') }}GB,
+          created {{ item.properties.timeCreated }}, source host {{ item.tags.SourceHostname | default('unknown') }}
+      loop: "{{ azure_demo_snapshots }}"
+      loop_control:
+        label: "{{ item.name }}"
+      tags:
+        - azure
+        - inventory
+
+    - name: Report AWS snapshot inventory
+      ansible.builtin.debug:
+        msg: >-
+          {{ item.snapshot_id }} - volume size {{ item.volume_size | default('unknown') }}GB,
+          created {{ item.start_time }}, source host {{ item.tags.SourceHostname | default('unknown') }}
+      loop: "{{ aws_demo_snapshots }}"
+      loop_control:
+        label: "{{ item.snapshot_id }}"
+      tags:
+        - aws
+        - inventory
+
+    - name: Report snapshot inventory summary
+      ansible.builtin.debug:
+        msg: "Found {{ azure_demo_snapshots | length }} Azure and {{ aws_demo_snapshots | length }} AWS demo snapshot(s) total."
+      tags:
+        - inventory
+
+    - name: Publish snapshot inventory counts for downstream workflow nodes
+      ansible.builtin.set_stats:
+        data:
+          azure_snapshot_count: "{{ azure_demo_snapshots | length }}"
+          aws_snapshot_count: "{{ aws_demo_snapshots | length }}"
+      tags:
+        - inventory

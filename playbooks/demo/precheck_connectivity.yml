@@ -1,0 +1,75 @@
+# Description: Read-only credential and connectivity check for Azure and AWS.
+# Confirms the Azure Service Principal (or Managed Identity) and AWS IAM
+# credentials AAP injects can actually authenticate, before any VM lookup or
+# snapshot task runs. Deliberately does not reference a target VM/instance,
+# so it stays useful even when azure_vm_hostname / aws_ec2_hostname are
+# misconfigured — that specific check belongs to Snapshot - Preview (dry
+# run), which runs immediately after this one in the workflow.
+---
+- name: Check Azure and AWS credentials and API connectivity
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - azure.azcollection
+    - amazon.aws
+    - ansible.builtin
+
+  pre_tasks:
+    - name: Validate required connectivity check variables
+      ansible.builtin.assert:
+        that:
+          - azure_subscription_id is defined
+        fail_msg: Set azure_subscription_id in demo_variables.yml.
+      tags:
+        - always
+
+    - name: Resolve connectivity check variables with defaults
+      ansible.builtin.set_fact:
+        aws_region: "{{ aws_region | default('us-east-1') }}"
+      tags:
+        - always
+
+  tasks:
+    - name: Confirm Azure credentials can access the configured subscription
+      azure.azcollection.azure_rm_subscription_info:
+        id: "{{ azure_subscription_id }}"
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
+      register: azure_subscription_check
+      tags:
+        - azure
+        - precheck
+
+    - name: Assert the configured Azure subscription is reachable
+      ansible.builtin.assert:
+        that:
+          - azure_subscription_check.subscriptions | length == 1
+        fail_msg: >-
+          Could not reach Azure subscription {{ azure_subscription_id }} with the
+          configured credentials. Check azure_client_id/azure_client_secret (or
+          the Managed Identity RBAC assignment when azure_auth_mode: msi) and
+          azure_subscription_id in demo_variables.yml/vault.yml.
+      tags:
+        - azure
+        - precheck
+
+    # aws_caller_info fails outright (module error) on invalid/expired
+    # credentials, so a successful registration already proves AWS auth
+    # works; no separate assert is needed here.
+    - name: Confirm AWS credentials can authenticate
+      amazon.aws.aws_caller_info:
+        region: "{{ aws_region }}"
+      register: aws_caller_check
+      tags:
+        - aws
+        - precheck
+
+    - name: Report connectivity check results
+      ansible.builtin.debug:
+        msg:
+          - >-
+            Azure: authenticated to subscription
+            {{ azure_subscription_check.subscriptions[0].display_name | default(azure_subscription_id) }}
+            ({{ azure_subscription_id }}).
+          - "AWS: authenticated as {{ aws_caller_check.arn }} in account {{ aws_caller_check.account }} (region {{ aws_region }})."
+      tags:
+        - precheck

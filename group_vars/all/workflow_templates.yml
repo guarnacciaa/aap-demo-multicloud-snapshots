@@ -14,6 +14,25 @@ controller_workflows:
       - "{{ demo_label_name }}"
     state: present
     simplified_workflow_nodes:
+      # Read-only credential/connectivity check: confirms AAP can
+      # authenticate to Azure and AWS before any VM lookup runs.
+      - identifier: connectivity_check
+        unified_job_template: Snapshot - Connectivity check (dry run)
+        organization: "{{ demo_organization_name }}"
+        success_nodes:
+          - preview_snapshot_targets
+        failure_nodes: []
+        always_nodes: []
+      # Read-only pre-flight check: confirms the target VM/instance exists and
+      # reports which disks/volumes will be snapshotted before any snapshot
+      # is created. A missing/misnamed VM fails here, before any mutation.
+      - identifier: preview_snapshot_targets
+        unified_job_template: Snapshot - Preview (dry run)
+        organization: "{{ demo_organization_name }}"
+        success_nodes:
+          - snapshot_azure
+        failure_nodes: []
+        always_nodes: []
       - identifier: snapshot_azure
         unified_job_template: Snapshot - Azure by hostname
         organization: "{{ demo_organization_name }}"
@@ -30,6 +49,15 @@ controller_workflows:
         always_nodes: []
       - identifier: verify_snapshots
         unified_job_template: Snapshot - Verify
+        organization: "{{ demo_organization_name }}"
+        success_nodes:
+          - cleanup_preview
+        failure_nodes: []
+        always_nodes: []
+      # Read-only: reports which existing snapshots the retention policy
+      # would remove, regardless of whether cleanup is actually enabled.
+      - identifier: cleanup_preview
+        unified_job_template: Snapshot - Cleanup preview (dry run)
         organization: "{{ demo_organization_name }}"
         success_nodes:
           - cleanup_snapshots
