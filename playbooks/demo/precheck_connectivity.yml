@@ -35,9 +35,15 @@
         - always
 
   tasks:
-    - name: Confirm Azure credentials can access the configured subscription
+    # Deliberately list ALL accessible subscriptions instead of filtering with
+    # id: <subscription>. azure_rm_subscription_info's get-by-id code path
+    # (azure.azcollection 3.18.0) returns a single dict from to_dict(), not a
+    # one-item list as its own RETURN docs promise, so `subscriptions | length
+    # == 1` never evaluates true even when the credentials work fine (it
+    # counts the dict's 6 keys instead). Listing avoids that module bug: the
+    # no-filter code path always returns a real list.
+    - name: List Azure subscriptions accessible with the configured credentials
       azure.azcollection.azure_rm_subscription_info:
-        id: "{{ azure_subscription_id }}"
         auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       register: azure_subscription_check
       tags:
@@ -47,12 +53,24 @@
     - name: Assert the configured Azure subscription is reachable
       ansible.builtin.assert:
         that:
-          - azure_subscription_check.subscriptions | length == 1
+          - azure_subscription_id in (azure_subscription_check.subscriptions | map(attribute='subscription_id') | list)
         fail_msg: >-
           Could not reach Azure subscription {{ azure_subscription_id }} with the
           configured credentials. Check azure_client_id/azure_client_secret (or
           the Managed Identity RBAC assignment when azure_auth_mode: msi) and
           azure_subscription_id in demo_variables.yml/vault.yml.
+      tags:
+        - azure
+        - precheck
+
+    - name: Resolve the matched Azure subscription details for reporting
+      ansible.builtin.set_fact:
+        azure_subscription_details: >-
+          {{
+            azure_subscription_check.subscriptions
+            | selectattr('subscription_id', 'equalto', azure_subscription_id)
+            | first
+          }}
       tags:
         - azure
         - precheck
@@ -73,7 +91,7 @@
         msg:
           - >-
             Azure: authenticated to subscription
-            {{ azure_subscription_check.subscriptions[0].display_name | default(azure_subscription_id) }}
+            {{ azure_subscription_details.display_name | default(azure_subscription_id) }}
             ({{ azure_subscription_id }}).
           - "AWS: authenticated as {{ aws_caller_check.arn }} in account {{ aws_caller_check.account }} (region {{ aws_region }})."
       tags:

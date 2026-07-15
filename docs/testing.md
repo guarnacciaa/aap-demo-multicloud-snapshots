@@ -41,7 +41,7 @@ Tracks testing progress for this demo. Update after each session. For procedural
 | Provision - Azure VM | Not tested | — | Lab/dev mode only. `azure_auth_mode` was missing from `extra_vars` (see Open issues); fix applied 2026-07-15, not yet re-verified |
 | Provision - AWS EC2 | Not tested | — | Lab/dev mode only |
 | Update - Multicloud inventory hosts | Not tested | — | Lab/dev mode only |
-| Snapshot - Connectivity check (dry run) | Fail | 2026-07-15 | Read-only credential/connectivity check. Failed with Azure "Failed to get credentials" (azure_auth_mode: msi not threaded through extra_vars — see Open issues); fix applied same day, not yet re-verified |
+| Snapshot - Connectivity check (dry run) | Partial | 2026-07-15 | Read-only credential/connectivity check. MSI auth fix confirmed working (no more "Failed to get credentials"); then hit a second bug — azure_rm_subscription_info's id: filter returns a dict, not a list, so `subscriptions | length == 1` always failed. Rewrote to list + membership check (see Open issues); fix applied same day, not yet re-verified |
 | Snapshot - Preview (dry run) | Not tested | — | Read-only pre-flight check. Same `azure_auth_mode` gap fixed 2026-07-15; not yet re-verified |
 | Snapshot - Azure by hostname | Not tested | — | Same `azure_auth_mode` gap fixed 2026-07-15; not yet re-verified |
 | Snapshot - AWS by hostname | Not tested | — | |
@@ -73,3 +73,12 @@ Tracks testing progress for this demo. Update after each session. For procedural
   job templates' `extra_vars`; also added `azure_subscription_id != CHANGE_ME` assertions to
   `aap_config.yml`, `verify.yml`, and `precheck_connectivity.yml` as a related hardening. Re-run
   `aap_config.yml` and re-launch the affected job templates to confirm.
+- **Confirmed fixed (2026-07-15):** the MSI auth fix above resolved the "Failed to get
+  credentials" error — `Snapshot - Connectivity check (dry run)` got past the Azure auth task.
+- `azure_rm_subscription_info` (azure.azcollection 3.18.0) returns a single dict from its
+  get-by-`id` code path instead of the one-item list its own `RETURN` docs promise, so
+  `precheck_connectivity.yml`'s `subscriptions | length == 1` assertion always failed regardless
+  of whether the credentials worked. Fixed 2026-07-15 by listing all accessible subscriptions
+  (`list_items()`, which does return a real list) and checking `azure_subscription_id` is a
+  member, instead of filtering by `id:`. Also fixed the report task's `subscriptions[0]` lookup
+  for the same reason. Not yet re-verified with a live run.
