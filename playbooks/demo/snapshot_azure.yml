@@ -87,13 +87,22 @@
         - azure
         - discover
 
+    # Azure snapshot resource names are capped at 80 characters. The managed
+    # disk's own name (item | basename) already carries Azure's auto-generated
+    # <vmname>_OsDisk_1_<32-char-guid> (or _DataDisk_N_<guid>) suffix, so folding
+    # it into the snapshot name — on top of the prefix, hostname, and date/time
+    # suffix — routinely exceeds the limit and Azure rejects the request with
+    # "InvalidParameter: The value of parameter snapshot.name is invalid" (400).
+    # Use a short, deterministic role label instead (osdisk for index 0,
+    # datadiskN for the rest), since azure_disk_ids always lists the OS disk
+    # first followed by data disks in order.
     - name: Create a snapshot for each managed disk
       azure.azcollection.azure_rm_snapshot:
         resource_group: "{{ azure_resource_group }}"
         # Include both date and hour-minute so multiple runs on the same day each
         # produce a distinct named snapshot, consistent with AWS behaviour.
         name: >-
-          {{ snapshot_name_prefix }}-{{ target_hostname }}-{{ item | basename | regex_replace('[^a-zA-Z0-9-]', '-') }}-{{ ansible_date_time.date | regex_replace('-', '') }}-{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}
+          {{ snapshot_name_prefix }}-{{ target_hostname }}-{{ 'osdisk' if disk_index == 0 else 'datadisk' + (disk_index | string) }}-{{ ansible_date_time.date | regex_replace('-', '') }}-{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}
         location: "{{ azure_vm_info.vms[0].location }}"
         creation_data:
           create_option: Copy
@@ -104,6 +113,8 @@
           RetentionDays: "{{ snapshot_retention_days | default(30) | string }}"
         auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       loop: "{{ azure_disk_ids }}"
+      loop_control:
+        index_var: disk_index
       register: azure_snapshot_results
       tags:
         - azure

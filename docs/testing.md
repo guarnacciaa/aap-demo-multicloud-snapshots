@@ -41,9 +41,9 @@ Tracks testing progress for this demo. Update after each session. For procedural
 | Provision - Azure VM | Not tested | — | Lab/dev mode only. `azure_auth_mode` was missing from `extra_vars` (see Open issues); fix applied 2026-07-15, not yet re-verified |
 | Provision - AWS EC2 | Not tested | — | Lab/dev mode only |
 | Update - Multicloud inventory hosts | Not tested | — | Lab/dev mode only |
-| Snapshot - Connectivity check (dry run) | Pass | 2026-07-15 | Read-only credential/connectivity check. Confirmed against a real AAP instance: Azure MSI auth and AWS IAM auth both succeeded (subscription crif-patchinghq-Int, AWS account 671257380337) |
-| Snapshot - Preview (dry run) | Pass | 2026-07-15 | Read-only pre-flight check. Confirmed: Azure VM `secopstest01uat` (1 disk) and AWS instance `crif_rhel10_POC00-RAAP` (1 volume) both previewed successfully |
-| Snapshot - Azure by hostname | Not tested | — | Same `azure_auth_mode` gap fixed 2026-07-15; not yet re-verified |
+| Snapshot - Connectivity check (dry run) | Pass | 2026-07-15 | Read-only credential/connectivity check. Confirmed against a real AAP instance: Azure MSI auth and AWS IAM auth both succeeded |
+| Snapshot - Preview (dry run) | Pass | 2026-07-15 | Read-only pre-flight check. Confirmed: a test Azure VM (1 disk) and a test AWS instance (1 volume) both previewed successfully |
+| Snapshot - Azure by hostname | Fail | 2026-07-20 | Failed with `InvalidParameter: The value of parameter snapshot.name is invalid` on the test VM; root cause found and fixed 2026-07-20 (see Resolved), not yet re-verified |
 | Snapshot - AWS by hostname | Not tested | — | |
 | Snapshot - Verify | Not tested | — | |
 | Snapshot - Cleanup preview (dry run) | Not tested | — | Read-only retention policy preview |
@@ -67,6 +67,21 @@ Tracks testing progress for this demo. Update after each session. For procedural
   `Snapshot - Connectivity check (dry run)` and `Snapshot - Preview (dry run)` on 2026-07-15
   (resolved, see below) — they share the affected code path but have not each been individually
   re-launched yet.
+- `Snapshot - Azure by hostname` needs a live re-verification of the snapshot-name-length fix
+  (resolved 2026-07-20, see below) against the test VM.
+
+## Resolved (2026-07-20)
+
+- **Azure snapshot name exceeded the 80-character limit.** `snapshot_azure.yml` built the
+  snapshot `name` from `snapshot_name_prefix` + hostname + the managed disk's own basename
+  (which includes Azure's auto-generated `<vmname>_OsDisk_1_<32-char-guid>` suffix) + a
+  date/time suffix. For the test VM this produced a 100-character name, over Azure's
+  80-character limit for snapshot resource names, so the Azure API rejected every disk with
+  `InvalidParameter: The value of parameter snapshot.name is invalid` (400). Fixed by replacing
+  the disk basename in the name with a short, deterministic role label (`osdisk` for the OS
+  disk, `datadiskN` for data disks) derived from the loop position via a new
+  `loop_control.index_var`, instead of the disk's actual Azure-generated name. The resulting
+  name for the test VM is 49 characters. **Not yet confirmed** via a live rerun.
 
 ## Resolved (2026-07-15)
 
