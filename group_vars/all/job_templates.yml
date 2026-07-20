@@ -94,6 +94,9 @@ controller_templates:
     ask_variables_on_launch: false
     extra_vars:
       azure_resource_group: "{{ azure_resource_group }}"
+      # See the comment on Snapshot - Connectivity check above: this playbook
+      # also branches on azure_auth_mode and must receive it via extra_vars.
+      azure_auth_mode: "{{ azure_auth_mode }}"
       aws_region: "{{ aws_region }}"
       snapshot_name_prefix: "{{ snapshot_name_prefix }}"
     labels:
@@ -111,6 +114,9 @@ controller_templates:
     ask_variables_on_launch: true
     extra_vars:
       azure_resource_group: "{{ azure_resource_group }}"
+      # See the comment on Snapshot - Connectivity check above: this playbook
+      # also branches on azure_auth_mode and must receive it via extra_vars.
+      azure_auth_mode: "{{ azure_auth_mode }}"
       aws_region: "{{ aws_region }}"
       enable_snapshot_cleanup: "{{ enable_snapshot_cleanup | default(false) }}"
       snapshot_cleanup_mode: "{{ snapshot_cleanup_mode | default('time') }}"
@@ -132,6 +138,9 @@ controller_templates:
     ask_variables_on_launch: true
     extra_vars:
       azure_resource_group: "{{ azure_resource_group }}"
+      # See the comment on Snapshot - Connectivity check above: this playbook
+      # also branches on azure_auth_mode and must receive it via extra_vars.
+      azure_auth_mode: "{{ azure_auth_mode }}"
       aws_region: "{{ aws_region }}"
       enable_snapshot_cleanup: "{{ enable_snapshot_cleanup | default(false) }}"
       # snapshot_cleanup_mode: 'time' (default) or 'count'.
@@ -155,6 +164,9 @@ controller_templates:
     ask_variables_on_launch: true
     extra_vars:
       azure_resource_group: "{{ azure_resource_group }}"
+      # See the comment on Snapshot - Connectivity check above: this playbook
+      # also branches on azure_auth_mode and must receive it via extra_vars.
+      azure_auth_mode: "{{ azure_auth_mode }}"
       aws_region: "{{ aws_region }}"
     labels:
       - "{{ demo_label_name }}"

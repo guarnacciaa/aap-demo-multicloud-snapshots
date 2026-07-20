@@ -48,6 +48,9 @@
     # -------------------------------------------------------------------------
     # Azure preview
     # -------------------------------------------------------------------------
+    # See the auth_source comment in snapshot_azure.yml: AAP's Azure RM credential
+    # type cannot inject Managed Identity env vars, so azure_auth_mode: msi must be
+    # threaded here explicitly (see job_templates.yml extra_vars for this template).
     - name: List Azure demo snapshots
       azure.azcollection.azure_rm_resource_info:
         resource_group: "{{ azure_resource_group }}"
@@ -55,6 +58,7 @@
         resource_type: snapshots
         # See snapshot_verify.yml for supported Microsoft.Compute/snapshots API versions.
         api_version: "2026-03-02"
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       register: azure_snapshots_raw
       tags:
         - azure

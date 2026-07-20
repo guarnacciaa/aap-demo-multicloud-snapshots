@@ -60,6 +60,9 @@
     # azure_rm_snapshot_info without a name does not enumerate all snapshots in a
     # resource group. Use azure_rm_resource_info with resource_type: snapshots for
     # reliable listing via the Azure REST API (same approach as snapshot_verify.yml).
+    # See the auth_source comment in snapshot_azure.yml: AAP's Azure RM credential
+    # type cannot inject Managed Identity env vars, so azure_auth_mode: msi must be
+    # threaded here explicitly (see job_templates.yml extra_vars for this template).
     - name: List Azure demo snapshots eligible for review
       azure.azcollection.azure_rm_resource_info:
         resource_group: "{{ azure_resource_group }}"
@@ -68,6 +71,7 @@
         # Microsoft.Compute/snapshots supported API versions:
         # 2022-07-02, 2023-01-02, 2023-04-02, 2023-10-02, 2024-03-02, 2025-01-02, 2026-03-02.
         api_version: "2026-03-02"
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       register: azure_snapshots_raw
       tags:
         - azure
@@ -81,6 +85,7 @@
         resource_group: "{{ azure_resource_group }}"
         name: "{{ item.name }}"
         state: absent
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       loop: "{{ azure_snapshots_raw.response | default([]) }}"
       when:
         - snapshot_cleanup_mode == 'time'
@@ -132,6 +137,7 @@
         resource_group: "{{ azure_resource_group }}"
         name: "{{ item.name }}"
         state: absent
+        auth_source: "{{ 'msi' if (azure_auth_mode | default('service_principal') == 'msi') else omit }}"
       loop: "{{ azure_snapshots_to_delete | default([]) }}"
       when: snapshot_cleanup_mode == 'count'
       tags:
