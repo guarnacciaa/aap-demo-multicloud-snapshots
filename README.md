@@ -92,7 +92,7 @@ Re-apply CasC with `aap_config.yml` when you want to deploy again.
 | Different APIs per cloud | Certified `azure.azcollection` and `amazon.aws` modules |
 | Consistent operational workflow | Workflow templates for setup, snapshot, and teardown |
 | Reproducible platform config | `infra.aap_configuration` CasC for all AAP objects |
-| Multicloud inventory UX (UC4) | Parent `Demo-Multicloud` inventory with Azure/AWS children |
+| Multicloud inventory UX (UC4) | Parent `Demo-MulticloudSnapshots` inventory with Azure/AWS children |
 | Clean post-demo state | Teardown workflow destroys all resources including snapshots |
 | Confidence before mutating cloud state | Four read-only dry-run job templates (connectivity check, target preview, cleanup preview, inventory report) gate and inform the workflow before any snapshot is created or deleted |
 
@@ -131,7 +131,7 @@ Re-apply CasC with `aap_config.yml` when you want to deploy again.
 ## Multicloud inventory UX (UC4)
 
 ```
-Demo-Multicloud
+Demo-MulticloudSnapshots
 +-- Azure-Resources
 |   +-- azure_vms (Azure demo VM)
 +-- AWS-Resources

@@ -1,6 +1,6 @@
 # Description: Refresh AAP host ansible_host values after cloud provisioning.
 # Looks up Azure and AWS public IPs by hostname, updates hosts in the child
-# inventories (Azure-Resources, AWS-Resources). Demo-Multicloud aggregates them
+# inventories (Azure-Resources, AWS-Resources). Demo-MulticloudSnapshots aggregates them
 # once input_inventories is wired (see aap_config.yml post_tasks).
 ---
 - name: Update multicloud demo host variables in AAP inventories
@@ -106,6 +106,6 @@
           AWS host {{ aws_ec2_hostname }}:
           {{ aws_ec2_info.instances[0].public_ip_address | default('not found')
              if (aws_ec2_info.instances | length > 0) else 'not found' }}.
-          Demo-Multicloud constructed inventory sync completed.
+          Demo-MulticloudSnapshots constructed inventory sync completed.
       tags:
         - inventory

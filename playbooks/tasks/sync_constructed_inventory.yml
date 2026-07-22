@@ -1,4 +1,4 @@
-# Sync Demo-Multicloud after child inventory hosts or input_inventories change.
+# Sync Demo-MulticloudSnapshots after child inventory hosts or input_inventories change.
 # Constructed inventories copy hosts from input inventories at sync time only.
 # Automation Controller auto-creates exactly one source named "Auto-created source for: <inventory>".
 ---

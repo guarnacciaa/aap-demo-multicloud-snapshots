@@ -6,5 +6,16 @@ controller_projects:
     scm_url: "{{ demo_project_scm_url }}"
     scm_branch: "{{ demo_project_scm_branch }}"
     scm_update_on_launch: true
+    # infra.aap_configuration's controller_projects role only triggers a new
+    # SCM sync when scm_url/scm_branch change; without this, re-running
+    # aap_config.yml after pushing new playbook files to the SAME branch
+    # leaves the project's local checkout stale, so dispatch then fails job
+    # template creation/update with "Playbook not found for project."
+    # update_project: true (a native ansible.controller.project parameter)
+    # forces a sync on every apply, before controller_job_templates runs.
+    # wait: true blocks until that sync completes, not just until the API
+    # accepts the request.
+    update_project: true
+    wait: true
     labels:
       - "{{ demo_label_name }}"

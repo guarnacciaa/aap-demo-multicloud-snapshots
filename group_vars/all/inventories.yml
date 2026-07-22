@@ -1,6 +1,6 @@
 ---
 # Multicloud inventory hierarchy: two source inventories (Azure, AWS) feed
-# into a single constructed inventory (Demo-Multicloud).
+# into a single constructed inventory (Demo-MulticloudSnapshots).
 # The source inventories must be defined first so they exist when the
 # constructed inventory references them via input_inventories.
 controller_inventories:

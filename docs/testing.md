@@ -10,7 +10,7 @@ Tracks testing progress for this demo. Update after each session. For procedural
 
 | Component | Status | Last tested | Notes |
 |---|---|---|---|
-| CasC apply (`aap_config.yml`) | Not tested | — | |
+| CasC apply (`aap_config.yml`) | Not tested | — | Project sync fix (originally 2026-07-15, dropped by commit 7181b71) reinstated 2026-07-21 as `update_project: true` on the project in `projects.yml` instead of the original pre_task — not yet re-verified |
 | CasC cleanup (`aap_cleanup.yml`) | Not tested | — | |
 | Smoke test (`verify.yml`) | Not tested | — | |
 
@@ -30,7 +30,7 @@ Tracks testing progress for this demo. Update after each session. For procedural
 
 | Component | Status | Last tested | Notes |
 |---|---|---|---|
-| `Demo-Multicloud` (parent, constructed) | Not tested | — | |
+| `Demo-MulticloudSnapshots` (parent, constructed) | Not tested | — | |
 | `Azure-Resources` / `azure_vms` | Not tested | — | |
 | `AWS-Resources` / `aws_vms` | Not tested | — | |
 
@@ -69,6 +69,22 @@ Tracks testing progress for this demo. Update after each session. For procedural
   re-launched yet.
 - `Snapshot - Azure by hostname` needs a live re-verification of the snapshot-name-length fix
   (resolved 2026-07-20, see below) against the test VM.
+
+## Resolved (2026-07-21)
+
+- **Project sync regression, fixed natively.** The `ansible.controller.project_update` pre_task
+  added 2026-07-15 to force-sync the demo project before job template creation (see Resolved
+  2026-07-15 below for why it is needed) was silently deleted by commit 7181b71 during an
+  unrelated pre_tasks edit — `ansible.controller` stayed in the play's `collections:` list
+  (still used by two `post_tasks`), which hid the loss. Discovered when the same class of
+  error (`Playbook not found for project.`) recurred on `aap-demo-cloud-native-automation`,
+  which never had the fix at all. Rather than re-adding the hand-rolled pre_task, replaced it
+  with a cleaner native fix in both demos: `ansible.controller.project`'s own `update_project:
+  true` parameter ("force project to update after changes", used with `wait`) set directly on
+  the project definition in `group_vars/all/projects.yml`. The existing `controller_projects`
+  role (already run by `dispatch` on every apply, before `controller_job_templates`) then
+  forces the sync with no extra task, role, or collection. **Not yet confirmed** via a live
+  rerun.
 
 ## Resolved (2026-07-20)
 
