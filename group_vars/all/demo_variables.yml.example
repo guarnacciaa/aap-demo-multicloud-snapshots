@@ -77,7 +77,7 @@ demo_execution_environment_image: CHANGE_ME/ee-multicloud-snapshots:latest
 
 # Private Automation Hub container registry (for Controller EE image pulls). [ALWAYS REQUIRED if using a custom EE]
 # Use the Gateway host or IP without a URL scheme; must match demo_execution_environment_image.
-hub_registry_credential_name: PAH Container Registry
+hub_registry_credential_name: PAH Container Registry - Multicloud Snapshots
 hub_registry_host: "{{ aap_hostname | regex_replace('^https?://', '') | regex_replace('/$', '') }}"
 
 # ============================================================================

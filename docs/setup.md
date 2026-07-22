@@ -245,7 +245,7 @@ Set `demo_execution_environment_image` in `group_vars/all/demo_variables.yml` to
 demo_execution_environment_image: <aap_host>/ee-multicloud-snapshots:latest
 ```
 
-CasC also creates a **Container Registry** credential (`PAH Container Registry`) with **Verify SSL** disabled and attaches it to the execution environment so the Controller can pull the image from a self-signed Hub registry.
+CasC also creates a **Container Registry** credential (`PAH Container Registry - Multicloud Snapshots`) with **Verify SSL** disabled and attaches it to the execution environment so the Controller can pull the image from a self-signed Hub registry. The name is suffixed with the demo title (not the bare `PAH Container Registry`) because `ansible.controller.execution_environment` resolves its `credential` field by name only, with no organization filter — a same-named credential in another artifact's Organization would make CasC fail with `returned 2 items, expected 1`.
 
 Re-apply CasC:
 
@@ -253,11 +253,11 @@ Re-apply CasC:
 ansible-playbook playbooks/aap_config.yml --vault-id @prompt
 ```
 
-Confirm in AAP: **Automation Execution** > **Infrastructure** > **Execution Environments** > `ee-multicloud-snapshots` shows the pushed image and the **PAH Container Registry** credential.
+Confirm in AAP: **Automation Execution** > **Infrastructure** > **Execution Environments** > `ee-multicloud-snapshots` shows the pushed image and the **PAH Container Registry - Multicloud Snapshots** credential.
 
 If job templates fail to pull the image:
 
-1. In **Automation Execution** > **Infrastructure** > **Execution Environments** > `ee-multicloud-snapshots`, confirm **Pull credential** is **PAH Container Registry** and open that credential: **Verify SSL** must be **off**.
+1. In **Automation Execution** > **Infrastructure** > **Execution Environments** > `ee-multicloud-snapshots`, confirm **Pull credential** is **PAH Container Registry - Multicloud Snapshots** and open that credential: **Verify SSL** must be **off**.
 2. Confirm `hub_registry_host` matches the registry host in `demo_execution_environment_image` exactly (same IP/hostname and port; if you pushed to `<aap_host>:8444`, both must include `:8444`).
 3. Re-apply CasC (post-task wires the credential explicitly):
   ```bash
@@ -281,7 +281,7 @@ For local `podman pull` tests, use `--tls-verify=false` (Controller job pulls us
 | `401 Unauthorized` on `podman login` or push                                                    | Wrong AAP credentials or insufficient Hub permissions                                                                                        | Use a user with permission to create containers on Hub (for example the gateway admin); authenticate through the Platform Gateway                                                                                            |
 | Connection refused on push                                                                      | Wrong registry host or port                                                                                                                  | Confirm `<aap_host>` matches `aap_hostname`; retry with port `8444` as shown above                                                                                                                                           |
 | `couldn't resolve module/action 'azure.azcollection.*'` at job runtime                          | Job uses the placeholder EE (`quay.io/ansible/ansible-runner`) instead of the custom image                                                   | Set `demo_execution_environment_image` in `demo_variables.yml`, re-run `aap_config.yml`, and confirm the job template points to `ee-multicloud-snapshots`                                                                    |
-| `x509: certificate signed by unknown authority` when Controller pulls the EE                    | Hub registry uses a self-signed certificate; EE missing registry credential and/or host OS does not trust the platform CA                    | Link **PAH Container Registry** with **Verify SSL** off to the EE; if pull still fails on growth installs, see [Trust the platform CA (growth installs)](#trust-the-platform-ca-growth-installs) |
+| `x509: certificate signed by unknown authority` when Controller pulls the EE                    | Hub registry uses a self-signed certificate; EE missing registry credential and/or host OS does not trust the platform CA                    | Link **PAH Container Registry - Multicloud Snapshots** with **Verify SSL** off to the EE; if pull still fails on growth installs, see [Trust the platform CA (growth installs)](#trust-the-platform-ca-growth-installs) |
 | `unable to copy from source docker://<host>/ee-...` with x509 error                             | Same as above, or `hub_registry_host` does not match the registry in `demo_execution_environment_image` (including `:8444` if used for push) | Align image host and credential; re-run CasC; see [Trust the platform CA (growth installs)](#trust-the-platform-ca-growth-installs)                                                                                                                      |
 | `Demo-MulticloudSnapshots` inventory shows no hosts                                             | Constructed inventory missing `input_inventories`, or hosts only in child inventories                                                        | Re-run `aap_config.yml`; confirm hosts under **Azure-Resources** / **AWS-Resources**; run **Update - Multicloud inventory hosts** after setup workflow                                                                       |
 | Sync task fails with HTTP 404 on `/api/v2/`                                                     | Legacy Controller API path on Platform Gateway                                                                                               | Use `ansible.controller` modules only; gateway path is `/api/controller/v2/` (AAP 2.5+)                                                                                                                                      |

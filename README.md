@@ -217,4 +217,4 @@ Tables below list every job template the demo defines. The **Infrastructure prov
 | Cross-cloud API timeout | AAP cannot reach AWS from Azure | Check network connectivity and security group rules |
 | `image not known` on `podman push` | Local image not tagged for Hub registry | Tag first: `podman tag localhost/ee-multicloud-snapshots:latest <aap_host>/ee-multicloud-snapshots:latest` |
 | TLS error on `podman login` to Hub | Self-signed certificate on growth deployment | Use `--tls-verify=false` on login and push; see [docs/setup.md](docs/setup.md) |
-| TLS error when Controller pulls EE | Missing Container Registry credential or Verify SSL enabled | Re-run CasC; attach `PAH Container Registry` credential with Verify SSL disabled |
+| TLS error when Controller pulls EE | Missing Container Registry credential or Verify SSL enabled | Re-run CasC; attach `PAH Container Registry - Multicloud Snapshots` credential with Verify SSL disabled |
