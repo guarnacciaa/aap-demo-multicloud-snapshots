@@ -283,7 +283,7 @@ For local `podman pull` tests, use `--tls-verify=false` (Controller job pulls us
 | `couldn't resolve module/action 'azure.azcollection.*'` at job runtime                          | Job uses the placeholder EE (`quay.io/ansible/ansible-runner`) instead of the custom image                                                   | Set `demo_execution_environment_image` in `demo_variables.yml`, re-run `aap_config.yml`, and confirm the job template points to `ee-multicloud-snapshots`                                                                    |
 | `x509: certificate signed by unknown authority` when Controller pulls the EE                    | Hub registry uses a self-signed certificate; EE missing registry credential and/or host OS does not trust the platform CA                    | Link **PAH Container Registry - Multicloud Snapshots** with **Verify SSL** off to the EE; if pull still fails on growth installs, see [Trust the platform CA (growth installs)](#trust-the-platform-ca-growth-installs) |
 | `unable to copy from source docker://<host>/ee-...` with x509 error                             | Same as above, or `hub_registry_host` does not match the registry in `demo_execution_environment_image` (including `:8444` if used for push) | Align image host and credential; re-run CasC; see [Trust the platform CA (growth installs)](#trust-the-platform-ca-growth-installs)                                                                                                                      |
-| `Demo-MulticloudSnapshots` inventory shows no hosts                                             | Constructed inventory missing `input_inventories`, or hosts only in child inventories                                                        | Re-run `aap_config.yml`; confirm hosts under **Azure-Resources** / **AWS-Resources**; run **Update - Multicloud inventory hosts** after setup workflow                                                                       |
+| `Demo-MulticloudSnapshots` inventory shows no hosts                                             | Constructed inventory missing `input_inventories`, or hosts only in child inventories                                                        | Re-run `aap_config.yml`; confirm hosts under **Azure-Resources-MulticloudSnapshots** / **AWS-Resources-MulticloudSnapshots**; run **Update - Multicloud inventory hosts** after setup workflow                                                                       |
 | Sync task fails with HTTP 404 on `/api/v2/`                                                     | Legacy Controller API path on Platform Gateway                                                                                               | Use `ansible.controller` modules only; gateway path is `/api/controller/v2/` (AAP 2.5+)                                                                                                                                      |
 | Sync task: inventory source not found                                                           | Wrong source name (`Demo-MulticloudSnapshots` vs auto-created name)                                                                          | Source is `Auto-created source for: Demo-MulticloudSnapshots`; sync task resolves it via API lookup                                                                                                                          |
 
@@ -310,15 +310,15 @@ This deletes the organization, project, templates, inventories, credentials, and
 
 ## Multicloud inventory (UC4)
 
-This artifact provisions a parent inventory `Demo-MulticloudSnapshots` with child inventories `Azure-Resources` and `AWS-Resources`. Hosts and groups are defined in CasC (`hosts.yml`, `groups.yml`).
+This artifact provisions a parent inventory `Demo-MulticloudSnapshots` with child inventories `Azure-Resources-MulticloudSnapshots` and `AWS-Resources-MulticloudSnapshots`. Hosts and groups are defined in CasC (`hosts.yml`, `groups.yml`).
 
-**Constructed inventory:** `Demo-MulticloudSnapshots` aggregates hosts from the two child inventories via `input_inventories`. The dispatch role does not always set `input_inventories` on first create; `aap_config.yml` reconciles this in a post-task. After CasC, you should see placeholder hosts in `Azure-Resources` and `AWS-Resources`; `Demo-MulticloudSnapshots` lists the same hosts once wiring succeeds.
+**Constructed inventory:** `Demo-MulticloudSnapshots` aggregates hosts from the two child inventories via `input_inventories`. The dispatch role does not always set `input_inventories` on first create; `aap_config.yml` reconciles this in a post-task. After CasC, you should see placeholder hosts in `Azure-Resources-MulticloudSnapshots` and `AWS-Resources-MulticloudSnapshots`; `Demo-MulticloudSnapshots` lists the same hosts once wiring succeeds.
 
 **After cloud provisioning:** the setup workflow runs **Update - Multicloud inventory hosts**, which sets `ansible_host` to each VM public IP and **syncs** the constructed inventory automatically (no manual **Sync** in the UI).
 
 If `Demo-MulticloudSnapshots` is still empty:
 
-1. Confirm hosts exist under **Azure-Resources** and **AWS-Resources**.
+1. Confirm hosts exist under **Azure-Resources-MulticloudSnapshots** and **AWS-Resources-MulticloudSnapshots**.
 2. Re-run `ansible-playbook playbooks/aap_config.yml --vault-id @prompt` (post-tasks wire `input_inventories` and sync).
 3. Run **Update - Multicloud inventory hosts** from **Templates**, or re-launch **WF - Demo setup**.
 

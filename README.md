@@ -132,9 +132,9 @@ Re-apply CasC with `aap_config.yml` when you want to deploy again.
 
 ```
 Demo-MulticloudSnapshots
-+-- Azure-Resources
++-- Azure-Resources-MulticloudSnapshots
 |   +-- azure_vms (Azure demo VM)
-+-- AWS-Resources
++-- AWS-Resources-MulticloudSnapshots
     +-- aws_vms (AWS demo VM)
 ```
 

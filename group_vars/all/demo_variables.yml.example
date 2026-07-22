@@ -70,6 +70,14 @@ demo_label_name: multicloud-snapshots
 demo_inventory_name: Demo-MulticloudSnapshots
 # Automation Controller auto-creates this source when kind is constructed (do not rename in the UI).
 demo_constructed_inventory_source_name: "Auto-created source for: {{ demo_inventory_name }}"
+# Child inventory names — must be unique across artifacts, not the bare
+# "Azure-Resources"/"AWS-Resources" shape. ansible.controller.host and
+# ansible.controller.group resolve their inventory: parameter by name only,
+# with no organization filter (module.resolve_name_to_id), so a same-named
+# inventory in another artifact's Organization makes aap_config.yml fail with
+# "returned 2 items, expected 1". See artifact--demo-variables.mdc.
+demo_azure_inventory_name: Azure-Resources-MulticloudSnapshots
+demo_aws_inventory_name: AWS-Resources-MulticloudSnapshots
 demo_execution_environment_name: ee-multicloud-snapshots
 # Full image reference after building and pushing to Private Automation Hub.
 # Must match the tag used in podman push (see docs/setup.md).
@@ -216,6 +224,12 @@ snapshot_retention_count: 1
 # ============================================================================
 # Credential names (must match credentials.yml) [ALWAYS REQUIRED]
 # ============================================================================
+# Must be unique across artifacts, not a generic placeholder like "Azure
+# Service Principal": job_template's credentials: list resolves each name via
+# a name-only Controller API lookup with no organization filter
+# (module.resolve_name_to_id), so a same-named credential in another
+# artifact's Organization makes aap_config.yml fail with
+# "returned 2 items, expected 1". See artifact--demo-variables.mdc.
 
-azure_credential_name: Azure Service Principal
-aws_credential_name: AWS IAM User
+azure_credential_name: Azure Service Principal - Multicloud Snapshots
+aws_credential_name: AWS IAM User - Multicloud Snapshots

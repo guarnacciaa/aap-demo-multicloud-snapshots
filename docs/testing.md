@@ -31,8 +31,8 @@ Tracks testing progress for this demo. Update after each session. For procedural
 | Component | Status | Last tested | Notes |
 |---|---|---|---|
 | `Demo-MulticloudSnapshots` (parent, constructed) | Not tested | — | |
-| `Azure-Resources` / `azure_vms` | Not tested | — | |
-| `AWS-Resources` / `aws_vms` | Not tested | — | |
+| `Azure-Resources-MulticloudSnapshots` / `azure_vms` | Not tested | — | |
+| `AWS-Resources-MulticloudSnapshots` / `aws_vms` | Not tested | — | |
 
 ### Job templates
 

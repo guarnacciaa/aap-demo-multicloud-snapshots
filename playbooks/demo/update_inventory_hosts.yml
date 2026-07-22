@@ -55,7 +55,7 @@
     - name: Update Azure host in AAP inventory
       ansible.controller.host:
         name: "{{ azure_vm_hostname }}"
-        inventory: Azure-Resources
+        inventory: "{{ demo_azure_inventory_name }}"
         variables:
           cloud: azure
           ansible_host: "{{ azure_public_ip | default(azure_vm_hostname, true) }}"
@@ -80,7 +80,7 @@
     - name: Update AWS host in AAP inventory
       ansible.controller.host:
         name: "{{ aws_ec2_hostname }}"
-        inventory: AWS-Resources
+        inventory: "{{ demo_aws_inventory_name }}"
         variables:
           cloud: aws
           ansible_host: >-
